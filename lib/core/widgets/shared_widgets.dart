@@ -174,12 +174,15 @@ class ModuleCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (badgeText != null) ...[

@@ -19,6 +19,7 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(6),
@@ -29,7 +30,12 @@ class DashboardScreen extends StatelessWidget {
               child: const Icon(Icons.hub_rounded, color: Colors.white, size: 18),
             ),
             const SizedBox(width: 8),
-            const Text('CampusOS'),
+            const Flexible(
+              child: Text(
+                'CampusOS',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [

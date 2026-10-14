@@ -22,12 +22,14 @@ class _GeoCamScreenState extends State<GeoCamScreen> {
         setState(() => _isCapturing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            backgroundColor: AppColors.success,
+            backgroundColor: AppColors.info,
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
+                Icon(Icons.info_outline, color: Colors.white),
                 SizedBox(width: 8),
-                Text('GeoCam: Cryptographically stamped photo saved!'),
+                Expanded(
+                  child: Text('GeoCam Preview: Watermark simulated. Live camera recording uses linked standalone GeoCam app.'),
+                ),
               ],
             ),
           ),
@@ -256,7 +258,7 @@ class _GeoCamScreenState extends State<GeoCamScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.camera_alt_rounded),
-            label: Text(_isCapturing ? 'Processing Stamp...' : 'Capture Verified Geo-Photo'),
+            label: Text(_isCapturing ? 'Processing Stamp...' : 'Simulate Geo-Stamp Preview'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               minimumSize: const Size.fromHeight(52),

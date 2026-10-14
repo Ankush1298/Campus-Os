@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../auth/models/user_session.dart';
@@ -90,8 +91,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     final summary = _data?['summary'] as Map<String, dynamic>?;
-    final todaySlots = (_data?['today'] as List<dynamic>?) ?? [];
     final profile = _data?['profile'] as Map<String, dynamic>?;
+    final todayRaw = _data?['today'];
+    final List<dynamic> todaySlots;
+    if (todayRaw is List) {
+      todaySlots = todayRaw;
+    } else if (todayRaw is Map && todayRaw['items'] is List) {
+      todaySlots = todayRaw['items'] as List<dynamic>;
+    } else {
+      todaySlots = [];
+    }
+
+    final isDemo = session.isDemo;
+    final bannerColor = isDemo
+        ? const Color(0xFFEFF6FF)
+        : (_isServerHealthy ? const Color(0xFFECFDF5) : const Color(0xFFFEF3C7));
+    final borderColor = isDemo
+        ? const Color(0xFFBFDBFE)
+        : (_isServerHealthy ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A));
+    final iconColor = isDemo
+        ? AppColors.primary
+        : (_isServerHealthy ? const Color(0xFF059669) : const Color(0xFFD97706));
+    final textColor = isDemo
+        ? const Color(0xFF1E40AF)
+        : (_isServerHealthy ? const Color(0xFF065F46) : const Color(0xFF92400E));
+    final bannerText = isDemo
+        ? 'Demo Mode — Displaying local simulated session data'
+        : (_isServerHealthy
+            ? 'Connected to Live Smart Attendance System'
+            : 'Live Server Unreachable (${ApiClient.baseUrl})');
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -103,29 +131,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _isServerHealthy ? const Color(0xFFECFDF5) : const Color(0xFFFEF3C7),
+              color: bannerColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _isServerHealthy ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
-              ),
+              border: Border.all(color: borderColor),
             ),
             child: Row(
               children: [
                 Icon(
-                  _isServerHealthy ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                  isDemo
+                      ? Icons.bolt_rounded
+                      : (_isServerHealthy ? Icons.cloud_done_rounded : Icons.cloud_off_rounded),
                   size: 20,
-                  color: _isServerHealthy ? const Color(0xFF059669) : const Color(0xFFD97706),
+                  color: iconColor,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    _isServerHealthy
-                        ? 'Connected to Live Smart Attendance System'
-                        : 'Offline / Standalone Mode (Displaying local campus cache)',
+                    bannerText,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: _isServerHealthy ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -187,7 +213,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        '${summary['percentage'] ?? 0}%',
+                        '${summary['percentage'] ?? summary['overall_percent'] ?? 0}%',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 42,
@@ -196,7 +222,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '${summary['attended'] ?? 0} of ${summary['total_classes'] ?? 0} classes',
+                        '${summary['attended'] ?? summary['present'] ?? 0} of ${summary['total_classes'] ?? summary['classes_counted'] ?? 0} classes',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
@@ -208,7 +234,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
-                      value: ((summary['percentage'] as num?)?.toDouble() ?? 0) / 100,
+                      value: (((summary['percentage'] ?? summary['overall_percent']) as num?)?.toDouble() ?? 0) / 100,
                       minHeight: 8,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
@@ -315,9 +341,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             )
           else
             ...todaySlots.map((slot) {
-              final course = slot['course'] ?? 'Class Session';
-              final time = slot['slot'] ?? '';
-              final room = slot['room'] ?? '';
+              final course = slot['course'] ?? slot['subject'] ?? 'Class Session';
+              final time = slot['slot'] ??
+                  (slot['start_time'] != null && slot['end_time'] != null
+                      ? '${slot['start_time']} - ${slot['end_time']}'
+                      : '');
+              final room = slot['room'] ?? slot['room_id'] ?? '';
               final status = slot['status'] ?? 'Scheduled';
 
               return Container(

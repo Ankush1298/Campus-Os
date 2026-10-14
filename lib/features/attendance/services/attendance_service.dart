@@ -19,17 +19,13 @@ class AttendanceService {
       return _mockOverview(session);
     }
 
-    try {
-      if (session.isStudent) {
-        return await ApiClient.get('/api/me/student/overview');
-      } else if (session.isTeacher) {
-        return await ApiClient.get('/api/me/teacher/overview');
-      } else {
-        return await ApiClient.get('/api/dashboard');
-      }
-    } catch (e) {
-      // Graceful fallback to mock demo data if live server unreachable
-      return _mockOverview(session);
+    // Live authenticated sessions query real backend endpoints directly
+    if (session.isStudent) {
+      return await ApiClient.get('/api/me/student/overview');
+    } else if (session.isTeacher) {
+      return await ApiClient.get('/api/me/teacher/overview');
+    } else {
+      return await ApiClient.get('/api/dashboard');
     }
   }
 
