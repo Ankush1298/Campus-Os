@@ -19,6 +19,12 @@ class UserSession {
   bool get isTeacher => role.toLowerCase() == 'teacher' || role.toLowerCase() == 'faculty';
   bool get isAdmin => role.toLowerCase() == 'admin';
 
+  bool get isExpired {
+    if (expiresAt == null || isDemo) return false;
+    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return expiresAt! <= nowSeconds;
+  }
+
   factory UserSession.fromJson(Map<String, dynamic> json) {
     return UserSession(
       token: json['token'] as String? ?? '',

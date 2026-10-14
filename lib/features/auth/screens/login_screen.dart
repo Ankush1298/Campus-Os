@@ -12,12 +12,18 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _idController = TextEditingController(text: '22CS1042');
-  final _passwordController = TextEditingController(text: 'password123');
-  final _urlController = TextEditingController(text: ApiClient.baseUrl);
+  final _idController = TextEditingController();
+  final _passwordController = TextEditingController();
+  late final TextEditingController _urlController;
   bool _isLoading = false;
   String? _errorMessage;
   bool _showServerConfig = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlController = TextEditingController(text: ApiClient.baseUrl);
+  }
 
   @override
   void dispose() {
@@ -182,6 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _idController,
                           decoration: const InputDecoration(
                             labelText: 'Roll No / Faculty ID',
+                            hintText: 'e.g. 22CS1042 or FAC-CS-08',
                             prefixIcon: Icon(Icons.badge_outlined, size: 20),
                           ),
                           textInputAction: TextInputAction.next,
@@ -194,6 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscureText: true,
                           decoration: const InputDecoration(
                             labelText: 'Password',
+                            hintText: 'Enter your account password',
                             prefixIcon: Icon(Icons.lock_outline, size: 20),
                           ),
                           onSubmitted: (_) => _handleLogin(),
@@ -242,10 +250,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: const InputDecoration(
                               labelText: 'API Base URL',
                               hintText: 'http://10.0.2.2:8000',
+                              helperText: 'Emulator: http://10.0.2.2:8000 • Device: host LAN IP',
                               prefixIcon: Icon(Icons.dns_outlined, size: 18),
                             ),
                             style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                            onChanged: (val) => ApiClient.setBaseUrl(val),
+                            onChanged: (val) => AuthService.instance.saveBackendUrl(val),
                           ),
                         ],
                       ],

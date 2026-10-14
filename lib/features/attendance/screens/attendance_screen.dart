@@ -90,7 +90,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
     }
 
-    final summary = _data?['summary'] as Map<String, dynamic>?;
+    final summary = (_data?['summary'] ?? _data?['my_attendance']) as Map<String, dynamic>?;
     final profile = _data?['profile'] as Map<String, dynamic>?;
     final todayRaw = _data?['today'];
     final List<dynamic> todaySlots;
@@ -118,8 +118,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final bannerText = isDemo
         ? 'Demo Mode — Displaying local simulated session data'
         : (_isServerHealthy
-            ? 'Connected to Live Smart Attendance System'
+            ? 'Connected to Live Smart Attendance System (${ApiClient.baseUrl})'
             : 'Live Server Unreachable (${ApiClient.baseUrl})');
+
+    final percentageNum = summary?['percentage'] ?? summary?['overall_percent'] ?? summary?['average_attendance'] ?? 0;
+    final totalCount = summary?['total_classes'] ?? summary?['classes_counted'] ?? summary?['classes_conducted'] ?? 0;
+    final subText = session.isTeacher
+        ? '$totalCount lectures conducted'
+        : '${summary?['attended'] ?? summary?['present'] ?? 0} of $totalCount classes';
+    final kpiTitle = session.isTeacher ? 'FACULTY AVERAGE PRESENCE' : 'ATTENDANCE RATE';
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -181,9 +188,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'ATTENDANCE RATE',
-                        style: TextStyle(
+                      Text(
+                        kpiTitle,
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -197,7 +204,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          summary['status'] ?? 'Good Standing',
+                          summary['status'] ?? (percentageNum >= 75 ? 'Good Standing' : 'Active'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -213,7 +220,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        '${summary['percentage'] ?? summary['overall_percent'] ?? 0}%',
+                        '$percentageNum%',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 42,
@@ -222,7 +229,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '${summary['attended'] ?? summary['present'] ?? 0} of ${summary['total_classes'] ?? summary['classes_counted'] ?? 0} classes',
+                        subText,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
@@ -234,7 +241,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
-                      value: (((summary['percentage'] ?? summary['overall_percent']) as num?)?.toDouble() ?? 0) / 100,
+                      value: ((percentageNum as num).toDouble()) / 100,
                       minHeight: 8,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
