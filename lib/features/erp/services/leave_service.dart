@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/network/api_client.dart';
@@ -31,6 +32,10 @@ class ErpConflictException implements Exception {
 class LeaveService {
   static final LeaveService instance = LeaveService._internal();
   LeaveService._internal();
+
+  /// When true, attempts live API synchronization with backend server.
+  /// Automatically disabled in unit/widget test environments where HttpClient is mocked by Flutter.
+  static bool syncWithServer = !Platform.environment.containsKey('FLUTTER_TEST');
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const String _storageKeyLeaves = 'campusos_erp_leaves_v1';
@@ -341,7 +346,7 @@ class LeaveService {
     final newId = 'LEAVE-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     final now = DateTime.now();
 
-    final application = LeaveApplication(
+    final localApplication = LeaveApplication(
       id: newId,
       applicantId: authenticatedStudentId, // Enforce authenticated identity
       applicantName: authenticatedStudentName,
@@ -369,20 +374,60 @@ class LeaveService {
       ],
     );
 
-    // 4. Atomic Persistence
-    _inMemoryLeaves.insert(0, application);
+    // 4. Try sending to server first if live sync enabled
+    if (syncWithServer) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves', localApplication.toJson());
+        if (res.isNotEmpty && res['id'] != null) {
+          final serverApp = LeaveApplication.fromJson(res);
+          _upsertInMemory(serverApp);
+          await _persistLeaves();
+          return serverApp;
+        }
+      } on ApiException catch (e) {
+        if (e.statusCode == 400) {
+          throw ErpValidationException(e.message);
+        } else if (e.statusCode == 401 || e.statusCode == 403) {
+          throw ErpAuthException(e.message);
+        } else if (e.statusCode == 409) {
+          throw ErpConflictException(e.message);
+        } else if (e.statusCode != 0) {
+          throw ErpValidationException(e.message);
+        }
+        // If statusCode == 0, backend server is offline in this environment;
+        // proceed with persistent local storage
+      }
+    }
+
+    // 5. Persistent local storage fallback
+    _upsertInMemory(localApplication);
     await _persistLeaves();
-
-    // 5. Try syncing to real backend if available
-    _trySyncBackendPost(application);
-
-    return application;
+    return localApplication;
   }
 
   Future<List<LeaveApplication>> getStudentLeaves({
     required String studentId,
   }) async {
     await initialize();
+
+    // Try live server sync if enabled
+    if (syncWithServer) {
+      try {
+        final res = await ApiClient.get('/api/erp/leaves/student/$studentId');
+        if (res['items'] is List) {
+          final list = (res['items'] as List)
+              .map((e) => LeaveApplication.fromJson(e as Map<String, dynamic>))
+              .toList();
+          for (final app in list) {
+            _upsertInMemory(app);
+          }
+          await _persistLeaves();
+        }
+      } catch (_) {
+        // Backend offline fallback
+      }
+    }
+
     // Return only leaves belonging to this authenticated student
     return _inMemoryLeaves
         .where((l) => l.applicantId == studentId && l.applicantRole == 'student')
@@ -413,6 +458,25 @@ class LeaveService {
       throw ErpConflictException(
         'Cannot cancel leave: current status is ${current.status.displayName}. Only PENDING leaves can be cancelled.',
       );
+    }
+
+    // Try server cancellation first if live sync enabled
+    if (syncWithServer) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves/$leaveId/cancel', {
+          'reason': cancellationReason ?? 'Cancelled by applicant student',
+        });
+        if (res.isNotEmpty && res['id'] != null) {
+          final serverApp = LeaveApplication.fromJson(res);
+          _upsertInMemory(serverApp);
+          await _persistLeaves();
+          return serverApp;
+        }
+      } on ApiException catch (e) {
+        if (e.statusCode == 403) throw ErpAuthException(e.message);
+        if (e.statusCode == 409) throw ErpConflictException(e.message);
+        if (e.statusCode != 0) throw ErpValidationException(e.message);
+      }
     }
 
     final now = DateTime.now();
@@ -458,6 +522,24 @@ class LeaveService {
 
     if (!isAuthorized) {
       throw const ErpAuthException('Access Denied: Warden or administrative privileges required.');
+    }
+
+    // Try live server sync if enabled
+    if (syncWithServer) {
+      try {
+        final res = await ApiClient.get('/api/erp/leaves/warden/$wardenId');
+        if (res['items'] is List) {
+          final list = (res['items'] as List)
+              .map((e) => LeaveApplication.fromJson(e as Map<String, dynamic>))
+              .toList();
+          for (final app in list) {
+            _upsertInMemory(app);
+          }
+          await _persistLeaves();
+        }
+      } catch (_) {
+        // Offline fallback
+      }
     }
 
     // Resolve assignment
@@ -544,6 +626,28 @@ class LeaveService {
       }
     }
 
+    // Try live server decision if enabled
+    if (syncWithServer) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves/$leaveId/decision', {
+          'status': approve ? 'approved' : 'rejected',
+          'remarks': remarks,
+          'decidedBy': approverName,
+          'decidedById': approverId,
+        });
+        if (res.isNotEmpty && res['id'] != null) {
+          final serverApp = LeaveApplication.fromJson(res);
+          _upsertInMemory(serverApp);
+          await _persistLeaves();
+          return serverApp;
+        }
+      } on ApiException catch (e) {
+        if (e.statusCode == 403) throw ErpAuthException(e.message);
+        if (e.statusCode == 409) throw ErpConflictException(e.message);
+        if (e.statusCode != 0) throw ErpValidationException(e.message);
+      }
+    }
+
     final now = DateTime.now();
     final newStatus = approve ? LeaveStatus.approved : LeaveStatus.rejected;
     final cleanRemarks = remarks?.trim() ?? (approve ? 'Approved by Warden' : 'Rejected by Warden');
@@ -571,9 +675,6 @@ class LeaveService {
 
     _inMemoryLeaves[index] = updated;
     await _persistLeaves();
-
-    // Sync to backend if active
-    _trySyncBackendDecision(updated);
 
     return updated;
   }
@@ -673,8 +774,17 @@ class LeaveService {
   }
 
   // ==========================================
-  // PERSISTENCE & BACKEND SYNC HELPERS
+  // PERSISTENCE & SYNC HELPERS
   // ==========================================
+
+  void _upsertInMemory(LeaveApplication app) {
+    final idx = _inMemoryLeaves.indexWhere((l) => l.id == app.id);
+    if (idx != -1) {
+      _inMemoryLeaves[idx] = app;
+    } else {
+      _inMemoryLeaves.insert(0, app);
+    }
+  }
 
   Future<void> _persistLeaves() async {
     try {
@@ -682,28 +792,6 @@ class LeaveService {
       await _storage.write(key: _storageKeyLeaves, value: jsonEncode(jsonList));
     } catch (e) {
       debugPrint('LeaveService: Note on storage write: $e');
-    }
-  }
-
-  Future<void> _trySyncBackendPost(LeaveApplication app) async {
-    try {
-      await ApiClient.post('/api/erp/leaves', app.toJson());
-    } catch (_) {
-      // Backend not running locally - local persistent storage is the primary source of truth
-    }
-  }
-
-  Future<void> _trySyncBackendDecision(LeaveApplication app) async {
-    try {
-      await ApiClient.post('/api/erp/leaves/${app.id}/decision', {
-        'status': app.status.name,
-        'remarks': app.decisionRemarks,
-        'decidedBy': app.decidedBy,
-        'decidedById': app.decidedById,
-        'decidedAt': app.decidedAt?.toIso8601String(),
-      });
-    } catch (_) {
-      // Offline fallback
     }
   }
 
