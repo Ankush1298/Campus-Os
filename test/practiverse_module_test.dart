@@ -404,5 +404,92 @@ void main() {
         expect(summaryFinder, findsOneWidget);
       },
     );
+
+    // 15. Recovery question unlocks on zero lives and restores life upon correct answer
+    testWidgets(
+      '15. recovery question unlocks on zero lives and restores life',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: PractiverseHomeScreen()),
+        );
+        await _openSumChallenge(tester);
+
+        // Fail 3 times to consume all 3 lives
+        for (var i = 0; i < 3; i++) {
+          final answerField = find.byKey(const Key('practiverse-answer'));
+          await _scrollTo(tester, answerField);
+          await tester.enterText(answerField, 'bad-$i');
+          await _tapCheck(tester);
+          if (i < 2) {
+            final retryBtn = find.text('Retry with remaining lives');
+            await _scrollTo(tester, retryBtn);
+            await tester.tap(retryBtn);
+            await tester.pumpAndSettle();
+          }
+        }
+
+        expect(find.text('0 lives'), findsOneWidget);
+        final recoveryTitle = find.text('Life Recovery Question');
+        await _scrollTo(tester, recoveryTitle);
+        expect(recoveryTitle, findsOneWidget);
+
+        // Select correct answer 'n'
+        final option = find.text('n');
+        await _scrollTo(tester, option);
+        await tester.tap(option);
+        await tester.pumpAndSettle();
+
+        // Submit recovery
+        final submitRecovery = find.byKey(
+          const Key('practiverse-recovery-submit'),
+        );
+        await _scrollTo(tester, submitRecovery);
+        await tester.tap(submitRecovery);
+        await tester.pumpAndSettle();
+
+        // Verify life restored to 1
+        expect(find.text('1 lives'), findsOneWidget);
+        expect(
+          find.textContaining('Recovery successful! +1 life granted'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    // 16. Timed verification quiz counts down and auto-submits on expiration
+    testWidgets(
+      '16. timed verification quiz counts down and auto-submits on expiration',
+      (tester) async {
+        var completed = false;
+        var scoreResult = -1;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: PractiverseQuizScreen(
+              timeLimitSeconds: 2,
+              onCompleted: (score) {
+                completed = true;
+                scoreResult = score;
+              },
+            ),
+          ),
+        );
+
+        expect(find.text('Time left: 0:02'), findsOneWidget);
+
+        // Advance 1 second
+        await tester.pump(const Duration(seconds: 1));
+        expect(find.text('Time left: 0:01'), findsOneWidget);
+        expect(completed, isFalse);
+
+        // Advance final second to expire timer
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+
+        expect(completed, isTrue);
+        expect(scoreResult, 0); // No answers chosen = 0
+        expect(find.text('Quiz complete'), findsOneWidget);
+      },
+    );
   });
 }

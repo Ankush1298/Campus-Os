@@ -1,6 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+
+export 'models/practical_subject.dart';
+export 'models/practical_activity.dart';
+export 'models/activity_evaluation.dart';
+export 'models/topic_intake_result.dart';
+export 'models/student_progress.dart';
+export 'engine/activity_registry.dart';
+export 'engine/topic_intake_engine.dart';
+export 'screens/topic_intake_screen.dart';
+export 'screens/activity_workspace_screen.dart';
+export 'screens/flexible_quiz_screen.dart';
+export 'screens/session_progress_screen.dart';
+export 'screens/virtual_labs_directory_screen.dart';
+
+import 'models/student_progress.dart';
+import 'engine/activity_registry.dart';
+import 'screens/topic_intake_screen.dart';
+import 'screens/activity_workspace_screen.dart';
+import 'screens/session_progress_screen.dart';
+import 'screens/virtual_labs_directory_screen.dart';
 
 /// Public integration boundary for Person 1.
 ///
@@ -9,15 +31,29 @@ import '../../core/theme/app_theme.dart';
 /// This module owns its internal navigation and session-only progress.
 class PractiverseModule {
   static const String moduleName = 'PractiVerse';
-  static const String version = '1.0.0';
+  static const String version = '2.0.0';
   static const String owner = 'Person 3 (feature/practiverse)';
 
   static Widget getEntryPoint(BuildContext context) {
-    return const PractiverseHomeScreen();
+    return const PractiverseHomeScreen(quizTimeLimitSeconds: 120);
   }
 }
 
 enum ChallengeDifficulty { beginner, intermediate }
+
+class PractiverseRecoveryQuestion {
+  const PractiverseRecoveryQuestion({
+    required this.prompt,
+    required this.options,
+    required this.correctIndex,
+    required this.explanation,
+  });
+
+  final String prompt;
+  final List<String> options;
+  final int correctIndex;
+  final String explanation;
+}
 
 class PractiverseChallenge {
   const PractiverseChallenge({
@@ -32,6 +68,7 @@ class PractiverseChallenge {
     required this.hints,
     required this.testCases,
     required this.icon,
+    this.recoveryQuestion,
   });
 
   final String id;
@@ -45,6 +82,7 @@ class PractiverseChallenge {
   final List<String> hints;
   final List<PractiverseTestCase> testCases;
   final IconData icon;
+  final PractiverseRecoveryQuestion? recoveryQuestion;
 
   String get difficultyLabel =>
       difficulty == ChallengeDifficulty.beginner ? 'Beginner' : 'Intermediate';
@@ -76,6 +114,12 @@ const List<PractiverseChallenge> practiverseChallenges = [
       PractiverseTestCase('Negative values', '-3'),
     ],
     icon: Icons.calculate_outlined,
+    recoveryQuestion: PractiverseRecoveryQuestion(
+      prompt: 'Concept check: What is the sum of 0 and any integer n?',
+      options: ['n', '0', '1', 'n + 1'],
+      correctIndex: 0,
+      explanation: '0 is the additive identity: 0 + n = n.',
+    ),
   ),
   PractiverseChallenge(
     id: 'even-odd',
@@ -96,6 +140,12 @@ const List<PractiverseChallenge> practiverseChallenges = [
       PractiverseTestCase('Zero boundary', 'EVEN'),
     ],
     icon: Icons.alt_route_outlined,
+    recoveryQuestion: PractiverseRecoveryQuestion(
+      prompt: 'Concept check: Which remainder indicates an even number when divided by 2?',
+      options: ['0', '1', '2', '-1'],
+      correctIndex: 0,
+      explanation: 'An even number leaves remainder 0 upon division by 2.',
+    ),
   ),
   PractiverseChallenge(
     id: 'reverse-text',
@@ -116,11 +166,18 @@ const List<PractiverseChallenge> practiverseChallenges = [
       PractiverseTestCase('Palindrome', 'level'),
     ],
     icon: Icons.swap_horiz_rounded,
+    recoveryQuestion: PractiverseRecoveryQuestion(
+      prompt: "Concept check: What is the first letter of 'dart' reversed?",
+      options: ['t', 'd', 'a', 'r'],
+      correctIndex: 0,
+      explanation: "Reversing 'dart' yields 'trad', which starts with 't'.",
+    ),
   ),
 ];
 
 class PractiverseHomeScreen extends StatefulWidget {
-  const PractiverseHomeScreen({super.key});
+  const PractiverseHomeScreen({this.quizTimeLimitSeconds, super.key});
+  final int? quizTimeLimitSeconds;
 
   @override
   State<PractiverseHomeScreen> createState() => _PractiverseHomeScreenState();
@@ -133,6 +190,24 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
   int _quizScore = 0;
   bool _quizCompleted = false;
   bool _showResults = false;
+  late final StudentProgress _sharedProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    _sharedProgress = StudentProgress();
+  }
+
+  void _openSimulation(String activityId) {
+    final act = ActivityRegistry.getById(activityId);
+    if (act == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ActivityWorkspaceScreen(activity: act, progress: _sharedProgress),
+      ),
+    );
+  }
 
   int get _totalLives => practiverseChallenges.fold<int>(
     0,
@@ -178,6 +253,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => PractiverseQuizScreen(
+          timeLimitSeconds: widget.quizTimeLimitSeconds,
           onCompleted: (score) {
             if (!mounted) return;
             setState(() {
@@ -203,6 +279,25 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'External Virtual Labs',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const VirtualLabsDirectoryScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.language_rounded),
+          ),
+          IconButton(
+            tooltip: 'Learning Progress & Mastery',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    SessionProgressScreen(progress: _sharedProgress),
+              ),
+            ),
+            icon: const Icon(Icons.assessment_outlined),
+          ),
+          IconButton(
             tooltip: 'Session results',
             onPressed: () => setState(() => _showResults = !_showResults),
             icon: const Icon(Icons.insights_outlined),
@@ -222,14 +317,37 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'LEARN BY DOING',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      fontSize: 11,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'LEARN BY DOING',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '3 labs',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   const Text(
@@ -310,18 +428,163 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 18),
+            // AI Syllabus Intake Banner
+            Card(
+              key: const Key('practiverse-intake-card'),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TopicIntakeScreen(progress: _sharedProgress),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.auto_stories_rounded,
+                          color: Color(0xFF2563EB),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI Syllabus Intake & Discovery',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Enter chapter topics or notes to discover custom multi-subject practicals.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Multi-Subject Practical Simulations Section
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SIMULATION ENGINE',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Multi-subject practicals',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const VirtualLabsDirectoryScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'External Labs',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildSimulationCard(
+              title: "Physics: Ohm's Law & DC Circuits",
+              subtitle: 'Interactive circuit with voltage & resistance sliders (I = V / R)',
+              icon: Icons.electric_bolt_rounded,
+              color: const Color(0xFF2563EB),
+              onTap: () => _openSimulation('physics_ohms_law'),
+            ),
+            const SizedBox(height: 10),
+            _buildSimulationCard(
+              title: 'Mathematics: Data Analysis & Outliers',
+              subtitle:
+                  'Interactive dataset exploring Mean vs. Median sensitivity',
+              icon: Icons.functions_rounded,
+              color: const Color(0xFF7C3AED),
+              onTap: () => _openSimulation('math_statistics_data'),
+            ),
+            const SizedBox(height: 10),
+            _buildSimulationCard(
+              title: 'Chemistry: Solution Dilution',
+              subtitle:
+                  'Virtual beaker model with solute conservation (C₁V₁ = C₂V₂)',
+              icon: Icons.science_rounded,
+              color: const Color(0xFF0D9488),
+              onTap: () => _openSimulation('chemistry_dilution'),
+            ),
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Practical challenges',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'CHALLENGE ARENA',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Practical challenges',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
                   ),
                 ),
                 Text(
-                  '${_visibleChallenges.length} labs',
+                  '${_visibleChallenges.length} challenges',
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
               ],
@@ -398,6 +661,60 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
       ),
     );
   }
+
+  Widget _buildSimulationCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.12),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: Color(0xFF94A3B8),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class PractiverseChallengeScreen extends StatefulWidget {
@@ -432,6 +749,8 @@ class _PractiverseChallengeScreenState
   bool? _lastPassed;
   int _passedCases = 0;
   int _visibleHints = 0;
+  bool _recoveryUsed = false;
+  int? _selectedRecoveryOption;
 
   @override
   void initState() {
@@ -487,7 +806,9 @@ class _PractiverseChallengeScreenState
         _lives = (_lives - 1).clamp(0, 3);
         widget.onLivesChanged(_lives);
         _feedback = _lives == 0
-            ? 'No lives left. Review the hints and return to the catalogue.'
+            ? (widget.challenge.recoveryQuestion != null && !_recoveryUsed
+                  ? 'No lives left! Answer the recovery question below to earn +1 life.'
+                  : 'No lives left. Review the hints and return to the catalogue.')
             : 'Some tests failed. Review the result, use a hint, then retry.';
         if (_lives == 0) _completed = true;
       }
@@ -503,6 +824,31 @@ class _PractiverseChallengeScreenState
       _passedCases = 0;
       _answerController.clear();
     });
+  }
+
+  void _submitRecovery() {
+    final q = widget.challenge.recoveryQuestion;
+    if (q == null || _selectedRecoveryOption == null) return;
+    if (_selectedRecoveryOption == q.correctIndex) {
+      setState(() {
+        _recoveryUsed = true;
+        _lives = 1;
+        _completed = false;
+        _evaluatedThisAttempt = false;
+        _lastPassed = null;
+        _passedCases = 0;
+        _answerController.clear();
+        _feedback =
+            'Recovery successful! +1 life granted. Review the hints and retry.';
+      });
+      widget.onLivesChanged(_lives);
+    } else {
+      setState(() {
+        _recoveryUsed = true;
+        _feedback =
+            'Recovery answer incorrect. Correct answer was: ${q.options[q.correctIndex]}. No further lives recovered.';
+      });
+    }
   }
 
   @override
@@ -742,6 +1088,72 @@ class _PractiverseChallengeScreenState
                 ],
               ),
             ),
+            if (_lives == 0 &&
+                widget.challenge.recoveryQuestion != null &&
+                !_recoveryUsed) ...[
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Life Recovery Question',
+                icon: Icons.healing_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Out of lives! Answer this concept question correctly to recover +1 life and continue learning.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.challenge.recoveryQuestion!.prompt,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    RadioGroup<int>(
+                      groupValue: _selectedRecoveryOption,
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedRecoveryOption = val);
+                        }
+                      },
+                      child: Column(
+                        children: [
+                          for (
+                            var i = 0;
+                            i <
+                                widget
+                                    .challenge
+                                    .recoveryQuestion!
+                                    .options
+                                    .length;
+                            i++
+                          )
+                            RadioListTile<int>(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              value: i,
+                              title: Text(
+                                widget.challenge.recoveryQuestion!.options[i],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        key: const Key('practiverse-recovery-submit'),
+                        onPressed: _selectedRecoveryOption == null
+                            ? null
+                            : _submitRecovery,
+                        icon: const Icon(Icons.favorite_rounded),
+                        label: const Text('Submit recovery answer (+1 life)'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -750,8 +1162,14 @@ class _PractiverseChallengeScreenState
 }
 
 class PractiverseQuizScreen extends StatefulWidget {
-  const PractiverseQuizScreen({required this.onCompleted, super.key});
+  const PractiverseQuizScreen({
+    required this.onCompleted,
+    this.timeLimitSeconds,
+    super.key,
+  });
+
   final ValueChanged<int> onCompleted;
+  final int? timeLimitSeconds;
 
   @override
   State<PractiverseQuizScreen> createState() => _PractiverseQuizScreenState();
@@ -813,6 +1231,37 @@ class _PractiverseQuizScreenState extends State<PractiverseQuizScreen> {
 
   final Map<int, int> _answers = {};
   bool _submitted = false;
+  Timer? _timer;
+  int? _remainingSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.timeLimitSeconds != null && widget.timeLimitSeconds! > 0) {
+      _remainingSeconds = widget.timeLimitSeconds;
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        if (_remainingSeconds != null && _remainingSeconds! > 0) {
+          setState(() {
+            _remainingSeconds = _remainingSeconds! - 1;
+            if (_remainingSeconds == 0) {
+              timer.cancel();
+              _submit();
+            }
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   int get _score => _questions
       .asMap()
@@ -822,6 +1271,7 @@ class _PractiverseQuizScreenState extends State<PractiverseQuizScreen> {
 
   void _submit() {
     if (_submitted) return;
+    _timer?.cancel();
     setState(() => _submitted = true);
     widget.onCompleted(_score);
   }
@@ -865,9 +1315,44 @@ class _PractiverseQuizScreenState extends State<PractiverseQuizScreen> {
                   Text(
                     _submitted
                         ? 'Your score: $_score / ${_questions.length}'
+                        : _remainingSeconds != null
+                        ? '$answered of ${_questions.length} answered · Timed verification'
                         : '$answered of ${_questions.length} answered · No time limit in this MVP',
                     style: const TextStyle(color: Colors.white),
                   ),
+                  if (_remainingSeconds != null && !_submitted) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Time left: ${_remainingSeconds! ~/ 60}:${(_remainingSeconds! % 60).toString().padLeft(2, '0')}',
+                            key: const Key('practiverse-quiz-timer'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
