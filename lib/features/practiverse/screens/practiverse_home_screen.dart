@@ -72,7 +72,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                  colors: [Color(0xFF0B1B3A), Color(0xFF0E7C86)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -179,12 +179,12 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: const Color(0xFFE6F4F5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.auto_stories_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF0E7C86),
                           size: 24,
                         ),
                       ),
@@ -205,7 +205,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                               'Enter chapter topics or notes to discover custom practicals.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF64748B),
+                                color: Color(0xFF56667F),
                               ),
                             ),
                           ],
@@ -258,7 +258,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                       children: [
                         Icon(
                           Icons.quiz_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF0E7C86),
                           size: 20,
                         ),
                         SizedBox(width: 8),
@@ -274,7 +274,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                     const SizedBox(height: 6),
                     const Text(
                       'Verify your practical retention across active subject modules.',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 13, color: Color(0xFF56667F)),
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
@@ -295,7 +295,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
+                          backgroundColor: const Color(0xFF0E7C86),
                           foregroundColor: Colors.white,
                         ),
                         child: const Text('Start verification quiz'),
@@ -335,8 +335,8 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
 
   Widget _buildActivityCard(BuildContext context, PracticalActivity act) {
     final isDone = _progress.completedActivityIds.contains(act.id);
-    Color chipColor = const Color(0xFF2563EB);
-    if (act.subjectId == 'mathematics') chipColor = const Color(0xFF7C3AED);
+    Color chipColor = const Color(0xFF0E7C86);
+    if (act.subjectId == 'mathematics') chipColor = const Color(0xFF5A6AE8);
     if (act.subjectId == 'chemistry') chipColor = const Color(0xFF0D9488);
     if (act.subjectId == 'computer_science') {
       chipColor = const Color(0xFF0284C7);
@@ -394,7 +394,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                         act.difficulty,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF64748B),
+                          color: Color(0xFF56667F),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -413,7 +413,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               const SizedBox(height: 4),
               Text(
                 act.conceptTested,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF46566F)),
               ),
               const SizedBox(height: 12),
               Row(
@@ -425,14 +425,14 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                         : 'External Virtual Lab',
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF56667F),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Icon(
                     Icons.arrow_forward_rounded,
                     size: 16,
-                    color: Color(0xFF2563EB),
+                    color: Color(0xFF0E7C86),
                   ),
                 ],
               ),

@@ -16,17 +16,53 @@ import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = os.environ.get("CAMPUSOS_DB_PATH", str(Path(__file__).parent / "campusos.db"))
-JWT_SECRET = (os.environ.get("CAMPUSOS_SECRET_KEY") or "campusos-supersecret-jwt-key-2026").encode()
+# Token signing key. Set CAMPUSOS_SECRET_KEY in production; otherwise a random per-process key is
+# used (safe, but every restart invalidates all sessions).
+_CONFIGURED_SECRET = os.environ.get("CAMPUSOS_SECRET_KEY", "")
+JWT_SECRET = (_CONFIGURED_SECRET or secrets.token_hex(32)).encode()
+IS_PRODUCTION = os.environ.get("CAMPUSOS_ENV", "").lower() == "production"
+
+
+def check_startup_config() -> None:
+    """Production refuses to start without a stable, sufficiently long signing key."""
+    if IS_PRODUCTION and len(_CONFIGURED_SECRET) < 32:
+        sys.exit("FATAL: CAMPUSOS_ENV=production requires CAMPUSOS_SECRET_KEY (min 32 chars).")
+    if not _CONFIGURED_SECRET:
+        print("WARNING: CAMPUSOS_SECRET_KEY unset; using a random key, sessions end on restart.", file=sys.stderr)
 TOKEN_TTL_SEC = 8 * 3600  # 8 hours
+# Comma-separated browser origins allowed via CORS. Unset = no CORS headers (native app needs none).
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CAMPUSOS_CORS_ORIGINS", "").split(",") if o.strip()]
+MAX_BODY_BYTES = 64 * 1024
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCK_SEC = 300
+_login_failures: Dict[str, List[float]] = {}  # ponytail: in-memory, per-process; use a shared store if multi-instance
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
+    return f"pbkdf2${_b64(salt)}${_b64(dk)}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        scheme, salt, dk = stored.split("$")
+        if scheme != "pbkdf2":
+            return False
+        calc = hashlib.pbkdf2_hmac("sha256", password.encode(), _unb64(salt), 200_000)
+        return hmac.compare_digest(calc, _unb64(dk))
+    except Exception:
+        return False
 
 
 # -----------------------------------------------------------------------------
@@ -82,6 +118,7 @@ def get_db() -> sqlite3.Connection:
 
 
 def init_db() -> None:
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = get_db()
     with conn:
         conn.executescript("""
@@ -150,6 +187,12 @@ def init_db() -> None:
             leave_balance TEXT NOT NULL         -- JSON dict
         );
 
+        -- Who approves each employee's leave. Explicit on purpose: being a warden grants no employee-leave rights.
+        CREATE TABLE IF NOT EXISTS employee_approvers (
+            employee_id TEXT PRIMARY KEY,
+            approver_id TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_leaves_applicant ON leaves(applicant_id);
         CREATE INDEX IF NOT EXISTS idx_leaves_warden ON leaves(assigned_warden_id);
         CREATE INDEX IF NOT EXISTS idx_leaves_status ON leaves(status);
@@ -160,16 +203,23 @@ def init_db() -> None:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS c FROM users")
         if cur.fetchone()["c"] == 0:
-            now_iso = datetime.now(timezone.utc).isoformat()
-            users = [
-                ("22CS1042", "Aarav Sharma", "student", "password123", "Computer Science & Engineering", now_iso),
-                ("22EE2001", "Vikram Singh", "student", "password123", "Electrical Engineering", now_iso),
-                ("FAC-CS-08", "Dr. Priya Sen", "teacher", "password123", "Computer Science & Engineering", now_iso),
-                ("FAC-CS-12", "Prof. Amit Sharma", "teacher", "password123", "Computer Science & Engineering", now_iso),
-                ("WARDEN-YAMUNA", "Prof. Rajesh Khanna", "teacher", "password123", "Electrical Engineering", now_iso),
-                ("ADMIN01", "Campus SuperAdmin", "admin", "admin123", "Central Administration", now_iso),
-            ]
-            cur.executemany("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", users)
+            # Demo accounts are only created when passwords are supplied via the environment.
+            demo_pw = os.environ.get("CAMPUSOS_DEMO_PASSWORD", "")
+            admin_pw = os.environ.get("CAMPUSOS_ADMIN_PASSWORD", "")
+            if not demo_pw or not admin_pw:
+                print("WARNING: CAMPUSOS_DEMO_PASSWORD / CAMPUSOS_ADMIN_PASSWORD not set; no demo accounts seeded.", file=sys.stderr)
+            else:
+                now_iso = datetime.now(timezone.utc).isoformat()
+                demo_hash, admin_hash = hash_password(demo_pw), hash_password(admin_pw)
+                users = [
+                    ("22CS1042", "Aarav Sharma", "student", demo_hash, "Computer Science & Engineering", now_iso),
+                    ("22EE2001", "Vikram Singh", "student", demo_hash, "Electrical Engineering", now_iso),
+                    ("FAC-CS-08", "Dr. Priya Sen", "teacher", demo_hash, "Computer Science & Engineering", now_iso),
+                    ("FAC-CS-12", "Prof. Amit Sharma", "teacher", demo_hash, "Computer Science & Engineering", now_iso),
+                    ("WARDEN-YAMUNA", "Prof. Rajesh Khanna", "teacher", demo_hash, "Electrical Engineering", now_iso),
+                    ("ADMIN01", "Campus SuperAdmin", "admin", admin_hash, "Central Administration", now_iso),
+                ]
+                cur.executemany("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", users)
 
         # Seed warden assignments if empty
         cur.execute("SELECT COUNT(*) AS c FROM warden_assignments")
@@ -188,6 +238,15 @@ def init_db() -> None:
             ]
             cur.executemany("INSERT INTO warden_assignments VALUES (?, ?, ?, ?, ?, ?, ?)", assignments)
 
+        # Seed approver assignments if empty (mirrors the 'reporting manager' column of the employee directory)
+        cur.execute("SELECT COUNT(*) AS c FROM employee_approvers")
+        if cur.fetchone()["c"] == 0:
+            cur.executemany("INSERT INTO employee_approvers VALUES (?, ?)", [
+                ("FAC-CS-12", "FAC-CS-08"),
+                ("WARDEN-YAMUNA", "ADMIN01"),
+                ("FAC-CS-08", "ADMIN01"),
+            ])
+
         # Seed employees if empty
         cur.execute("SELECT COUNT(*) AS c FROM employees")
         if cur.fetchone()["c"] == 0:
@@ -202,8 +261,8 @@ def init_db() -> None:
             cur.executemany("INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?)", emps)
 
         # Seed initial leave if empty
-        cur.execute("SELECT COUNT(*) AS c FROM leaves")
-        if cur.fetchone()["c"] == 0:
+        has_seed_user = conn.execute("SELECT 1 FROM users WHERE id = '22CS1042'").fetchone()
+        if cur.execute("SELECT COUNT(*) AS c FROM leaves").fetchone()["c"] == 0 and has_seed_user:
             now_iso = datetime.now(timezone.utc).isoformat()
             cur.execute("""
             INSERT INTO leaves VALUES (
@@ -222,30 +281,37 @@ def init_db() -> None:
     conn.close()
 
 
-def is_student_assigned_to_warden(conn: sqlite3.Connection, warden_id: str, student_id: str, hostel: Optional[str], dept: Optional[str]) -> bool:
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM warden_assignments WHERE warden_id = ?", (warden_id,))
-    row = cur.fetchone()
+def is_student_assigned_to_warden(conn: sqlite3.Connection, warden_id: str, student_id: str) -> bool:
+    """Trusted check: uses only server-side records (warden_assignments + users.department).
+
+    Client-supplied hostel/department values are never consulted. There is no trusted
+    student->hostel table yet, so hostel-based assignment is intentionally NOT supported.
+    """
+    row = conn.execute("SELECT * FROM warden_assignments WHERE warden_id = ?", (warden_id,)).fetchone()
     if not row:
         return False
-    hostels = json.loads(row["assigned_hostels"])
-    departments = json.loads(row["assigned_departments"])
     students = json.loads(row["assigned_student_ids"])
-
     if "*" in students or student_id in students:
         return True
-    if hostel:
-        for h in hostels:
-            if h == "*" or h.lower() in hostel.lower():
-                return True
-    if dept:
-        dept_lower = dept.lower().strip()
-        tokens = set(re.split(r"[\s/&,]+", dept_lower))
-        for d in departments:
-            d_lower = d.lower().strip()
-            if d_lower == "*" or d_lower == dept_lower or d_lower in tokens:
-                return True
-    return False
+    user = conn.execute("SELECT department FROM users WHERE id = ? AND role = 'student'", (student_id,)).fetchone()
+    if not user or not user["department"]:
+        return False
+    dept = user["department"].lower().strip()
+    return any(d.strip() == "*" or d.lower().strip() == dept for d in json.loads(row["assigned_departments"]))
+
+
+def approver_for_employee(conn: sqlite3.Connection, employee_id: str) -> Optional[str]:
+    row = conn.execute("SELECT approver_id FROM employee_approvers WHERE employee_id = ?", (employee_id,)).fetchone()
+    return row["approver_id"] if row else None
+
+
+def can_decide_employee_leave(conn: sqlite3.Connection, caller: Dict[str, Any], applicant_id: str) -> bool:
+    """Admin, or the explicitly assigned approver. Never the applicant, never a student."""
+    if caller["role"] == "student" or caller["sub"] == applicant_id:
+        return False
+    if caller["role"] == "admin":
+        return True
+    return caller["role"] in ("teacher", "faculty", "warden") and approver_for_employee(conn, applicant_id) == caller["sub"]
 
 
 # -----------------------------------------------------------------------------
@@ -256,9 +322,12 @@ class CampusApiHandler(BaseHTTPRequestHandler):
     server_version = "CampusOS-Backend/1.0"
 
     def _send_cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
+        origin = self.headers.get("Origin", "")
+        if origin and origin in CORS_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -278,12 +347,14 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         self._json_response({"error": {"code": code, "message": message}, "detail": message}, status=status)
 
     def _read_json(self) -> Optional[Dict[str, Any]]:
-        length = int(self.headers.get("Content-Length", 0))
-        if length <= 0:
-            return {}
         try:
-            raw = self.rfile.read(length).decode("utf-8")
-            return json.loads(raw)
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0:
+                return {}
+            if length > MAX_BODY_BYTES:
+                return None
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            return data if isinstance(data, dict) else None
         except Exception:
             return None
 
@@ -300,6 +371,7 @@ class CampusApiHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0].rstrip("/")
+        self._include_decided = "status=all" in self.path.partition("?")[2]
 
         if path == "/api/health":
             return self._json_response({
@@ -327,6 +399,14 @@ class CampusApiHandler(BaseHTTPRequestHandler):
             warden_id = path.split("/")[-1]
             return self._handle_get_warden_inbox(user, warden_id)
 
+        # GET /api/erp/leaves/employee/<id>   (own history, or admin)
+        if path.startswith("/api/erp/leaves/employee/"):
+            return self._handle_get_employee_leaves(user, path.split("/")[-1])
+
+        # GET /api/erp/leaves/approver/<id>   (assigned approver's employee-leave inbox)
+        if path.startswith("/api/erp/leaves/approver/"):
+            return self._handle_get_approver_inbox(user, path.split("/")[-1])
+
         # GET /api/erp/employees
         if path == "/api/erp/employees":
             return self._handle_get_employees(user)
@@ -353,6 +433,10 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         if path == "/api/erp/leaves":
             return self._handle_create_leave(user)
 
+        # POST /api/erp/admin/employee-approvers   {"employeeId": "...", "approverId": "..."}  (admin only)
+        if path == "/api/erp/admin/employee-approvers":
+            return self._handle_set_employee_approver(user)
+
         # POST /api/erp/leaves/<id>/decision
         if re.match(r"^/api/erp/leaves/[^/]+/decision$", path):
             leave_id = path.split("/")[4]
@@ -374,8 +458,13 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         if not body or "id" not in body or "password" not in body:
             return self._error(400, "Fields 'id' and 'password' are required.", code="bad_request")
 
-        uid = body["id"].strip()
-        pwd = body["password"].strip()
+        uid = str(body["id"]).strip()
+        pwd = str(body["password"])
+
+        now = time.time()
+        recent = [t for t in _login_failures.get(uid, []) if now - t < LOGIN_LOCK_SEC]
+        if len(recent) >= LOGIN_MAX_FAILURES:
+            return self._error(429, "Too many failed attempts. Try again in a few minutes.", code="rate_limited")
 
         conn = get_db()
         cur = conn.cursor()
@@ -383,8 +472,10 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         user = cur.fetchone()
         conn.close()
 
-        if not user or user["password_hash"] != pwd:
+        if not user or not verify_password(pwd, user["password_hash"]):
+            _login_failures[uid] = recent + [now]
             return self._error(401, "Invalid Roll Number / Employee ID or password.", code="invalid_credentials")
+        _login_failures.pop(uid, None)
 
         token_data = issue_token(sub=user["id"], name=user["name"], role=user["role"])
         return self._json_response(token_data)
@@ -420,20 +511,33 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         cur.execute("SELECT name, department, role FROM users WHERE id = ?", (applicant_id,))
         user_row = cur.fetchone()
         applicant_name = user_row["name"] if user_row else caller.get("name", "Student")
-        applicant_role = user_row["role"] if user_row else caller.get("role", "student")
-        dept = body.get("department") or (user_row["department"] if user_row else "General")
-        hostel = body.get("hostel") or "Hostel Ganga (Block B)"
+        applicant_role = "student" if (user_row["role"] if user_row else caller.get("role")) == "student" else "employee"
+        dept = (user_row["department"] if user_row else None) or "General"  # server record, not client input
+        hostel = (str(body.get("hostel") or "")[:80] or None) if applicant_role == "student" else None  # display only; never used for routing
 
         # Resolve assigned warden
-        assigned_warden_id = "FAC-CS-08"
+        assigned_warden_id = None  # unassigned students are visible to admins only
+        # For employee leave the column holds the explicitly assigned approver instead of a warden.
+        if applicant_role == "employee":
+            assigned_warden_id = approver_for_employee(conn, applicant_id)
         cur.execute("SELECT * FROM warden_assignments")
-        for row in cur.fetchall():
-            if is_student_assigned_to_warden(conn, row["warden_id"], applicant_id, hostel, dept):
+        for row in (cur.fetchall() if applicant_role == "student" else []):
+            if "*" in json.loads(row["assigned_student_ids"]):
+                continue  # superadmin sees everything; never the routed warden
+            if is_student_assigned_to_warden(conn, row["warden_id"], applicant_id):
                 assigned_warden_id = row["warden_id"]
                 break
 
         now_iso = datetime.now(timezone.utc).isoformat()
-        leave_id = body.get("id") or f"LEAVE-{datetime.now().year}-{int(time.time()*1000) % 10000000}"
+        leave_id = f"LEAVE-{datetime.now().year}-{secrets.token_hex(4).upper()}"
+
+        cur.execute(
+            "SELECT 1 FROM leaves WHERE applicant_id = ? AND status = 'pending' AND leave_type = ? AND start_date = ? AND end_date = ?",
+            (applicant_id, leave_type, start_date.isoformat(), end_date.isoformat()),
+        )
+        if cur.fetchone():
+            conn.close()
+            return self._error(409, "An identical pending leave request already exists.", code="conflict")
 
         try:
             with conn:
@@ -454,7 +558,7 @@ class CampusApiHandler(BaseHTTPRequestHandler):
                 """, (leave_id, applicant_id, applicant_name, applicant_role, now_iso))
         except sqlite3.IntegrityError as e:
             conn.close()
-            return self._error(409, f"Leave ID already exists or constraint violation: {e}", code="conflict")
+            return self._error(409, "Leave could not be saved (conflict).", code="conflict")
 
         leave_dict = self._fetch_full_leave(conn, leave_id)
         conn.close()
@@ -480,7 +584,7 @@ class CampusApiHandler(BaseHTTPRequestHandler):
             l = self._fetch_full_leave(conn, r["id"])
             if l:
                 if role in ("teacher", "faculty", "warden"):
-                    if is_student_assigned_to_warden(conn, sub, l["applicantId"], l.get("hostel"), l.get("department")) or l.get("assignedWardenId") == sub:
+                    if is_student_assigned_to_warden(conn, sub, l["applicantId"]):
                         result.append(l)
                 else:
                     result.append(l)
@@ -511,13 +615,14 @@ class CampusApiHandler(BaseHTTPRequestHandler):
 
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT id FROM leaves WHERE applicant_role = 'student' AND status = 'pending' ORDER BY applied_at DESC")
+        status_filter = "" if getattr(self, "_include_decided", False) else "AND status = 'pending'"
+        cur.execute(f"SELECT id FROM leaves WHERE applicant_role = 'student' {status_filter} ORDER BY applied_at DESC")
         rows = cur.fetchall()
         assigned_leaves = []
         for r in rows:
             l = self._fetch_full_leave(conn, r["id"])
             if l:
-                if caller["role"] == "admin" or is_student_assigned_to_warden(conn, warden_id, l["applicantId"], l.get("hostel"), l.get("department")) or l.get("assignedWardenId") == warden_id:
+                if caller["role"] == "admin" or is_student_assigned_to_warden(conn, warden_id, l["applicantId"]):
                     assigned_leaves.append(l)
         conn.close()
         return self._json_response({"items": assigned_leaves, "count": len(assigned_leaves)})
@@ -546,11 +651,16 @@ class CampusApiHandler(BaseHTTPRequestHandler):
             conn.close()
             return self._error(409, f"Application #{leave_id} has already been decided ({row['status']}) by {row['decided_by'] or 'approver'}.", code="conflict")
 
-        # Warden Scoping Guard
-        if caller["role"] != "admin":
-            if not is_student_assigned_to_warden(conn, caller["sub"], row["applicant_id"], row["hostel"], row["department"]) and row["assigned_warden_id"] != caller["sub"]:
+        # Authorization differs by kind: employee leave needs the explicitly assigned approver (or admin, never the applicant);
+        # student leave needs the assigned warden (or admin).
+        if row["applicant_role"] == "employee":
+            if not can_decide_employee_leave(conn, caller, row["applicant_id"]):
                 conn.close()
-                return self._error(403, "Access denied: You are not assigned to this student's hostel or department.", code="forbidden")
+                return self._error(403, "Access denied: you are not the assigned approver for this employee.", code="forbidden")
+        elif caller["role"] != "admin":
+            if not is_student_assigned_to_warden(conn, caller["sub"], row["applicant_id"]):
+                conn.close()
+                return self._error(403, "Access denied: You are not assigned to this student.", code="forbidden")
 
         now_iso = datetime.now(timezone.utc).isoformat()
         with conn:
@@ -600,7 +710,56 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         conn.close()
         return self._json_response(cancelled_leave)
 
+    def _handle_get_employee_leaves(self, caller: Dict[str, Any], employee_id: str):
+        # Own history only (admin may view anyone's). Students never reach employee data.
+        if caller["role"] == "student" or (caller["role"] != "admin" and caller["sub"] != employee_id):
+            return self._error(403, "Access denied: you can only view your own employee leave records.", code="forbidden")
+        conn = get_db()
+        rows = conn.execute("SELECT id FROM leaves WHERE applicant_id = ? AND applicant_role = 'employee' ORDER BY applied_at DESC", (employee_id,)).fetchall()
+        leaves = [self._fetch_full_leave(conn, r["id"]) for r in rows]
+        conn.close()
+        return self._json_response({"items": leaves, "count": len(leaves)})
+
+    def _handle_get_approver_inbox(self, caller: Dict[str, Any], approver_id: str):
+        if caller["role"] not in ("admin", "teacher", "faculty", "warden"):
+            return self._error(403, "Access denied: approver privileges required.", code="forbidden")
+        if caller["role"] != "admin" and caller["sub"] != approver_id:
+            return self._error(403, "Access denied: you can only open your own approval inbox.", code="forbidden")
+        conn = get_db()
+        status_filter = "" if getattr(self, "_include_decided", False) else "AND status = 'pending'"
+        rows = conn.execute(f"SELECT id, applicant_id FROM leaves WHERE applicant_role = 'employee' {status_filter} ORDER BY applied_at DESC").fetchall()
+        items = []
+        for r in rows:
+            if r["applicant_id"] == approver_id:
+                continue  # your own requests are never in your own approval queue
+            if caller["role"] == "admin" or approver_for_employee(conn, r["applicant_id"]) == approver_id:
+                items.append(self._fetch_full_leave(conn, r["id"]))
+        conn.close()
+        return self._json_response({"items": items, "count": len(items)})
+
+    def _handle_set_employee_approver(self, caller: Dict[str, Any]):
+        if caller["role"] != "admin":
+            return self._error(403, "Access denied: administrators only.", code="forbidden")
+        body = self._read_json() or {}
+        employee_id, approver_id = str(body.get("employeeId", "")).strip(), str(body.get("approverId", "")).strip()
+        if not employee_id or not approver_id or employee_id == approver_id:
+            return self._error(400, "employeeId and approverId are required and must differ.", code="validation_error")
+        conn = get_db()
+        known = {r["id"]: r["role"] for r in conn.execute("SELECT id, role FROM users").fetchall()}
+        if employee_id not in known or known[employee_id] == "student" or known.get(approver_id) not in ("teacher", "admin"):
+            conn.close()
+            return self._error(400, "employeeId must be a staff account and approverId a teacher or admin account.", code="validation_error")
+        with conn:
+            conn.execute("INSERT INTO employee_approvers (employee_id, approver_id) VALUES (?, ?) "
+                         "ON CONFLICT(employee_id) DO UPDATE SET approver_id = excluded.approver_id", (employee_id, approver_id))
+            conn.execute("UPDATE leaves SET assigned_warden_id = ? WHERE applicant_id = ? AND applicant_role = 'employee' AND status = 'pending'",
+                         (approver_id, employee_id))
+        conn.close()
+        return self._json_response({"employeeId": employee_id, "approverId": approver_id})
+
     def _handle_get_employees(self, caller: Dict[str, Any]):
+        if caller["role"] == "student":
+            return self._error(403, "Access denied: staff only.", code="forbidden")
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT * FROM employees")
@@ -628,8 +787,19 @@ class CampusApiHandler(BaseHTTPRequestHandler):
             return self._error(404, f"Leave #{leave_id} not found.", code="not_found")
 
         # Authorization check
-        if caller["role"] == "student" and leave["applicantId"] != caller["sub"]:
-            return self._error(403, "Access denied to private leave record.", code="forbidden")
+        if caller["role"] != "admin" and leave["applicantId"] != caller["sub"]:
+            conn = get_db()
+            if leave["applicantRole"] == "employee":
+                allowed = caller["role"] in ("teacher", "faculty", "warden") and approver_for_employee(conn, leave["applicantId"]) == caller["sub"]
+                conn.close()
+                return self._json_response(leave) if allowed else self._error(403, "Access denied to private leave record.", code="forbidden")
+            assigned = (
+                caller["role"] in ("teacher", "faculty", "warden")
+                and is_student_assigned_to_warden(conn, caller["sub"], leave["applicantId"])
+            )
+            conn.close()
+            if not assigned:
+                return self._error(403, "Access denied to private leave record.", code="forbidden")
 
         return self._json_response(leave)
 
@@ -680,9 +850,10 @@ class CampusApiHandler(BaseHTTPRequestHandler):
 # -----------------------------------------------------------------------------
 
 def run_server(port: int = 8000, host: str = "0.0.0.0") -> None:
+    check_startup_config()
     init_db()
     server_address = (host, port)
-    httpd = HTTPServer(server_address, CampusApiHandler)
+    httpd = ThreadingHTTPServer(server_address, CampusApiHandler)
     print(f"CampusOS Backend REST API running at http://{host}:{port} (Database: {DB_PATH})")
     try:
         httpd.serve_forever()
@@ -692,5 +863,5 @@ def run_server(port: int = 8000, host: str = "0.0.0.0") -> None:
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8000))
     run_server(port=port)

@@ -31,10 +31,10 @@ class VirtualLabsDirectoryScreen extends StatelessWidget {
                   Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Color(0xFFEFF6FF),
+                        backgroundColor: Color(0xFFE6F4F5),
                         child: Icon(
                           Icons.language_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF0E7C86),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -67,7 +67,7 @@ class VirtualLabsDirectoryScreen extends StatelessWidget {
                     lab.description,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF475569),
+                      color: Color(0xFF46566F),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -88,7 +88,7 @@ class VirtualLabsDirectoryScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontFamily: 'monospace',
                               fontSize: 11,
-                              color: Color(0xFF1E293B),
+                              color: Color(0xFF1B2B4B),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

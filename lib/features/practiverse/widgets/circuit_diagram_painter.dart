@@ -16,17 +16,17 @@ class CircuitDiagramPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final wirePaint = Paint()
-      ..color = const Color(0xFF64748B)
+      ..color = const Color(0xFF56667F)
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
 
     final componentPaint = Paint()
-      ..color = const Color(0xFF1E293B)
+      ..color = const Color(0xFF1B2B4B)
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
 
     final batteryPaint = Paint()
-      ..color = const Color(0xFF2563EB)
+      ..color = const Color(0xFF0E7C86)
       ..strokeWidth = 3.5
       ..style = PaintingStyle.stroke;
 
@@ -102,7 +102,7 @@ class CircuitDiagramPainter extends CustomPainter {
     textPainter.text = const TextSpan(
       text: 'A',
       style: TextStyle(
-        color: Color(0xFF0F172A),
+        color: Color(0xFF0B1B3A),
         fontWeight: FontWeight.bold,
         fontSize: 14,
       ),
@@ -136,7 +136,7 @@ class CircuitDiagramPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: const TextStyle(
-          color: Color(0xFF0F172A),
+          color: Color(0xFF0B1B3A),
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),

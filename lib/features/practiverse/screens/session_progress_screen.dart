@@ -23,7 +23,7 @@ class SessionProgressScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                  colors: [Color(0xFF0B1B3A), Color(0xFF1B2B4B)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -93,7 +93,7 @@ class SessionProgressScreen extends StatelessWidget {
                 child: const Center(
                   child: Text(
                     'No practicals completed yet this session. Explore a simulation to begin!',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    style: TextStyle(color: Color(0xFF56667F), fontSize: 13),
                   ),
                 ),
               )
@@ -121,7 +121,7 @@ class SessionProgressScreen extends StatelessWidget {
                 child: const Center(
                   child: Text(
                     'No conceptual errors recorded. Excellent baseline understanding!',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    style: TextStyle(color: Color(0xFF56667F), fontSize: 13),
                   ),
                 ),
               )
@@ -163,7 +163,7 @@ class SessionProgressScreen extends StatelessWidget {
                 child: const Center(
                   child: Text(
                     'No verification quizzes attempted yet.',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    style: TextStyle(color: Color(0xFF56667F), fontSize: 13),
                   ),
                 ),
               )
@@ -173,7 +173,7 @@ class SessionProgressScreen extends StatelessWidget {
                   child: ListTile(
                     leading: const Icon(
                       Icons.quiz_rounded,
-                      color: Color(0xFF2563EB),
+                      color: Color(0xFF0E7C86),
                     ),
                     title: Text('Subject: ${entry.key.toUpperCase()}'),
                     trailing: Text(

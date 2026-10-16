@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../auth/models/user_session.dart';
@@ -74,7 +75,9 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
         title: Row(
           children: [
             Icon(
-              approve ? Icons.check_circle_outline : Icons.highlight_off_rounded,
+              approve
+                  ? Icons.check_circle_outline
+                  : Icons.highlight_off_rounded,
               color: approve ? AppColors.success : AppColors.error,
               size: 24,
             ),
@@ -88,15 +91,22 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
           children: [
             Text(
               '${approve ? "Approve" : "Reject"} application #${leave.id} for student ${leave.applicantName} (${leave.applicantId})?',
-              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: remarksController,
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: approve ? 'Approval Remarks (Optional)' : 'Reason for Rejection *',
-                hintText: approve ? 'e.g. Parental consent verified.' : 'e.g. Exam scheduled during dates.',
+                labelText: approve
+                    ? 'Approval Remarks (Optional)'
+                    : 'Reason for Rejection *',
+                hintText: approve
+                    ? 'e.g. Parental consent verified.'
+                    : 'e.g. Exam scheduled during dates.',
               ),
             ),
           ],
@@ -111,7 +121,9 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
               if (!approve && remarksController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Please provide remarks when rejecting a student leave.'),
+                    content: Text(
+                      'Please provide remarks when rejecting a student leave.',
+                    ),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -148,7 +160,9 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
             content: Text(
               'Application ${updated.id} successfully ${updated.status.displayName} by ${widget.session.name}.',
             ),
-            backgroundColor: approve ? AppColors.success : AppColors.textPrimary,
+            backgroundColor: approve
+                ? AppColors.success
+                : AppColors.textPrimary,
           ),
         );
         _loadQueue();
@@ -161,7 +175,10 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
             title: const Text('Decision Error'),
             content: Text(e.toString()),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
             ],
           ),
         );
@@ -184,7 +201,8 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
   @override
   Widget build(BuildContext context) {
     // If not authorized as warden, faculty, or admin, show security barrier
-    final isAuthorized = widget.session.role.toLowerCase() == 'admin' ||
+    final isAuthorized =
+        widget.session.role.toLowerCase() == 'admin' ||
         widget.session.role.toLowerCase() == 'teacher' ||
         widget.session.role.toLowerCase() == 'faculty' ||
         widget.session.role.toLowerCase() == 'warden';
@@ -202,7 +220,11 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
                   color: Color(0xFFFEE2E2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.lock_person_outlined, size: 48, color: AppColors.error),
+                child: const Icon(
+                  Icons.lock_person_outlined,
+                  size: 48,
+                  color: AppColors.error,
+                ),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -218,13 +240,21 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
               Text(
                 'Your current session account (${widget.session.name} • ${widget.session.role.toUpperCase()}) does not hold official warden or administrative leave approval privileges.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 20),
               const Text(
                 'Tip: Switch to Faculty/Warden persona (e.g. Dr. Priya Sen, FAC-CS-08) using the persona selector above to review assigned hostel leaves.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
               ),
             ],
           ),
@@ -234,156 +264,196 @@ class _WardenInboxScreenState extends State<WardenInboxScreen> {
 
     return Column(
       children: [
-        // Warden Header Banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: Colors.white,
-          child: Column(
-            children: [
-              Row(
+        // Warden Header Banner (scrolls internally on very small / large-text screens instead of overflowing)
+        Flexible(
+          flex: 2,
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.glassFillStrong,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.glassEdge),
+              ),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: const Color(0xFFE0E7FF),
-                    child: const Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${widget.session.name} (${widget.session.id})',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFFE4E8FF),
+                        child: const Icon(
+                          Icons.shield_outlined,
+                          size: 18,
+                          color: AppColors.primary,
                         ),
-                        Text(
-                          widget.session.role.toLowerCase() == 'admin'
-                              ? 'SuperAdmin: All Campus Hostels & Departments'
-                              : 'Assigned: Hostel Ganga (Block B), CSE Dept',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${widget.session.name} (${widget.session.id})',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              widget.session.role.toLowerCase() == 'admin'
+                                  ? 'Administrator: all campus requests'
+                                  : 'Requests from the students assigned to you',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      children: [
+                        FilterChip(
+                          label: Text(
+                            _pendingOnly ? 'Pending Only' : 'All Decisions',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _pendingOnly
+                                  ? AppColors.warning
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          selected: _pendingOnly,
+                          onSelected: (val) {
+                            setState(() => _pendingOnly = val);
+                            _loadQueue();
+                          },
+                          selectedColor: const Color(0xFFFEF3C7),
+                          checkmarkColor: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.refresh_rounded,
+                            size: 20,
+                            color: AppColors.textSecondary,
+                          ),
+                          tooltip: 'Refresh Queue',
+                          onPressed: _loadQueue,
                         ),
                       ],
                     ),
                   ),
-                  Row(
-                    children: [
-                      FilterChip(
-                        label: Text(
-                          _pendingOnly ? 'Pending Only' : 'All Decisions',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _pendingOnly ? AppColors.warning : AppColors.textSecondary,
-                          ),
-                        ),
-                        selected: _pendingOnly,
-                        onSelected: (val) {
-                          setState(() => _pendingOnly = val);
-                          _loadQueue();
-                        },
-                        selectedColor: const Color(0xFFFEF3C7),
-                        checkmarkColor: AppColors.warning,
+                  const SizedBox(height: 8),
+
+                  // Search Box
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search by student name, roll number, or leave ID...',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.textSecondary),
-                        tooltip: 'Refresh Queue',
-                        onPressed: _loadQueue,
-                      ),
-                    ],
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                    onChanged: (val) =>
+                        setState(() => _searchQuery = val.trim()),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-
-              // Search Box
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search by student name, roll number, or leave ID...',
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                style: const TextStyle(fontSize: 13),
-                onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              ),
-            ],
+            ),
           ),
         ),
 
         // Applications List
         Expanded(
+          flex: 3,
           child: _isLoading
               ? const LoadingView(message: 'Loading assigned students inbox...')
               : _errorMessage != null
-                  ? ErrorStateView(
-                      message: _errorMessage!,
-                      onRetry: _loadQueue,
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadQueue,
-                      color: AppColors.primary,
-                      child: _filteredApplications.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(32),
-                              children: [
-                                const SizedBox(height: 40),
-                                const Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.textMuted),
-                                const SizedBox(height: 12),
-                                Center(
-                                  child: Text(
-                                    _pendingOnly
-                                        ? 'No pending applications in your assigned inbox.'
-                                        : 'No applications found.',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Center(
-                                  child: Text(
-                                    'All student requests assigned to your hostel/dept are up to date.',
-                                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              itemCount: _filteredApplications.length,
-                              itemBuilder: (ctx, idx) {
-                                final leave = _filteredApplications[idx];
-                                return LeaveCard(
-                                  leave: leave,
-                                  isWardenView: true,
-                                  onTap: () => LeaveDetailSheet.show(
-                                    context,
-                                    leave: leave,
-                                    isWarden: true,
-                                    onDecide: (approve) => _promptDecision(leave, approve),
-                                  ),
-                                  onDecide: (approve) => _promptDecision(leave, approve),
-                                );
-                              },
+              ? ErrorStateView(message: _errorMessage!, onRetry: _loadQueue)
+              : RefreshIndicator(
+                  onRefresh: _loadQueue,
+                  color: AppColors.primary,
+                  child: _filteredApplications.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(32),
+                          children: [
+                            const SizedBox(height: 40),
+                            const Icon(
+                              Icons.assignment_turned_in_outlined,
+                              size: 48,
+                              color: AppColors.textMuted,
                             ),
-                    ),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: Text(
+                                _pendingOnly
+                                    ? 'No pending applications in your assigned inbox.'
+                                    : 'No applications found.',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Center(
+                              child: Text(
+                                'All student requests assigned to your hostel/dept are up to date.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          itemCount: _filteredApplications.length,
+                          itemBuilder: (ctx, idx) {
+                            final leave = _filteredApplications[idx];
+                            return LeaveCard(
+                              leave: leave,
+                              isWardenView: true,
+                              onTap: () => LeaveDetailSheet.show(
+                                context,
+                                leave: leave,
+                                isWarden: true,
+                                onDecide: (approve) =>
+                                    _promptDecision(leave, approve),
+                              ),
+                              onDecide: (approve) =>
+                                  _promptDecision(leave, approve),
+                            );
+                          },
+                        ),
+                ),
         ),
       ],
     );

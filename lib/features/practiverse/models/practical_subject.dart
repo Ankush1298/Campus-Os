@@ -37,7 +37,7 @@ class PracticalSubject {
       name: 'Physics & Electronics',
       category: SubjectCategory.physics,
       icon: Icons.electric_bolt_rounded,
-      accentColor: Color(0xFF2563EB),
+      accentColor: Color(0xFF0E7C86),
       description: 'Circuit behavior, Ohm\'s law, electromagnetic induction, wave mechanics, and optics.',
       sampleTopics: [
         'Ohm\'s Law & DC Circuits',
@@ -51,7 +51,7 @@ class PracticalSubject {
       name: 'Mathematics & Statistics',
       category: SubjectCategory.mathematics,
       icon: Icons.functions_rounded,
-      accentColor: Color(0xFF7C3AED),
+      accentColor: Color(0xFF5A6AE8),
       description: 'Statistical distributions, central tendency, outliers, linear regression, and calculus.',
       sampleTopics: [
         'Descriptive Statistics & Outliers',

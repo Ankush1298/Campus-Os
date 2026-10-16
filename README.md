@@ -108,3 +108,56 @@ flutter build apk --debug
    flutter analyze
    flutter test
    ```
+
+---
+
+## 🧪 Hackathon Quick-Start, Hosting & Demo
+
+### Two backends (important)
+| Backend | Used for | Where |
+|---|---|---|
+| Smart Attendance API (external, Railway) | Login, Attendance, timetable | `API_BASE_URL` (default baked in; overridable at build time or on the login screen) |
+| CampusOS ERP server (`server/server.py`, this repo) | Student leave, warden approval, audit history | `ERP_API_BASE_URL` (build-time) |
+
+If `ERP_API_BASE_URL` is empty, ERP calls go to the same server as `API_BASE_URL` (useful when you run only the CampusOS server and point the app at it).
+On login, the app signs into the ERP server with the same ID/password, so **accounts must exist on both servers with the same credentials** for a real (non-demo) session to use both.
+**Demo sessions never contact any server**: Attendance shows labelled sample data and ERP shows a "DEMO MODE: stored on this device only" banner. Real sessions never fall back to local storage; if the server is down they get an error.
+
+### Run the ERP server locally
+```bash
+export CAMPUSOS_DEMO_PASSWORD='<choose>'     # password for seeded demo student/teacher accounts
+export CAMPUSOS_ADMIN_PASSWORD='<choose>'    # password for ADMIN01
+export CAMPUSOS_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
+python3 server/server.py            # PORT env or argv[1], default 8000; GET /api/health
+python3 -m unittest server/test_server.py   # backend tests (use its own temp DB)
+```
+Seeded accounts (only created when the two password variables are set): students `22CS1042`, `22EE2001`; wardens `FAC-CS-08` (CSE), `WARDEN-YAMUNA` (EE); admin `ADMIN01`.
+
+### Server environment variables
+| Variable | Required | Purpose |
+|---|---|---|
+| `CAMPUSOS_ENV` | Set to `production` on the host | In production the server refuses to start unless `CAMPUSOS_SECRET_KEY` is set (>= 32 chars). |
+| `CAMPUSOS_SECRET_KEY` | Yes in production | Signs bearer tokens. If unset a random key is used and every restart logs everyone out. |
+| `CAMPUSOS_DEMO_PASSWORD`, `CAMPUSOS_ADMIN_PASSWORD` | To seed demo accounts | Passwords are stored PBKDF2-hashed. No accounts are created without them. |
+| `CAMPUSOS_DB_PATH` | Recommended | SQLite file path; point it at a persistent volume. |
+| `CAMPUSOS_CORS_ORIGINS` | Only for browser clients | Comma-separated allowed origins. Native app needs none. |
+| `PORT` | Set by most hosts | Listen port. |
+
+### Hosting the server (Render / Railway / any VM)
+- Runtime: Python 3.9+, **no pip dependencies**. Start command: `python3 server/server.py`. Health check: `/api/health`.
+- **Persistence requires a persistent volume**: the SQLite file lives at `CAMPUSOS_DB_PATH` (parent folders are created). Without a mounted volume, data is lost on redeploy. Attach a persistent disk/volume and set `CAMPUSOS_DB_PATH` to a file on it (otherwise the DB resets on redeploy; for a demo that is acceptable, the seed data is recreated).
+- Always serve over HTTPS (the platform proxy does this); tokens are bearer tokens.
+- Build the app pointing at it: `flutter build apk --release --dart-define=ERP_API_BASE_URL=https://<your-erp-host>` (add `--dart-define=API_BASE_URL=...` to override the attendance backend).
+
+### Demo walkthrough (live mode)
+1. Launch app, log in as `22CS1042` -> Dashboard -> ERP & Leave -> Student Leave -> submit a request.
+2. Log out, log in as `FAC-CS-08` -> ERP -> Warden Inbox -> open the request -> Approve/Reject with remarks.
+3. Log in as `22CS1042` again -> Student Leave: status and audit history show the persisted decision.
+4. Attendance (needs the Attendance backend), PractiVerse (deterministic in-app challenge/quiz checking; no code is executed), GeoCam (real camera + GPS, SHA-256 and Ed25519 stamp on the captured bytes).
+- **Fallback if a server is down:** use the "Instant Demo Access" buttons on the login screen. Everything is clearly labelled demo/local-only.
+
+### Known limitations
+- Employee leave application/approval is device-local only (no server endpoint yet); the ERP banner says so.
+- Warden routing uses only server records: `warden_assignments` (explicit student IDs) and the student's `users.department`. Client-supplied hostel/department is ignored for routing (hostel is display-only). There is no trusted student-to-hostel table, so hostel-based assignment is not supported; students with no matching warden are visible to admin only.
+- Demo accounts share one password; rotate/replace before any real use. Login is rate-limited per ID (5 failures / 5 min) in memory only.
+- `ERP_API_BASE_URL` is build-time only; the login screen's backend URL field changes the Attendance/primary URL.

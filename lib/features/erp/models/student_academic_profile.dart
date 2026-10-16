@@ -65,7 +65,10 @@ class StudentAcademicProfile {
     this.officialRecords = const [],
   });
 
-  factory StudentAcademicProfile.defaultProfile({required String rollNo, required String name}) {
+  factory StudentAcademicProfile.defaultProfile({
+    required String rollNo,
+    required String name,
+  }) {
     return StudentAcademicProfile(
       rollNo: rollNo,
       name: name,
@@ -84,35 +87,35 @@ class StudentAcademicProfile {
           'slot': '09:00 - 10:00 AM',
           'course': 'CS301: Data Structures & Algorithms',
           'room': 'LH-101',
-          'faculty': 'Dr. Priya Sen'
+          'faculty': 'Dr. Priya Sen',
         },
         {
           'day': 'Monday',
           'slot': '11:15 - 12:15 PM',
           'course': 'CS302: Computer Networks',
           'room': 'LH-102',
-          'faculty': 'Prof. A. Verma'
+          'faculty': 'Prof. A. Verma',
         },
         {
           'day': 'Monday',
           'slot': '02:00 - 04:00 PM',
           'course': 'CS303: Operating Systems Lab',
           'room': 'Lab-2',
-          'faculty': 'Er. R. Kumar'
+          'faculty': 'Er. R. Kumar',
         },
         {
           'day': 'Tuesday',
           'slot': '10:00 - 11:00 AM',
           'course': 'CS304: Database Management Systems',
           'room': 'LH-103',
-          'faculty': 'Dr. S. Nair'
+          'faculty': 'Dr. S. Nair',
         },
         {
           'day': 'Wednesday',
           'slot': '03:00 - 05:00 PM',
           'course': 'CS305: Cloud Computing & Virtualization',
           'room': 'Lab-4',
-          'faculty': 'Prof. M. Patel'
+          'faculty': 'Prof. M. Patel',
         },
       ],
       officialRecords: const [

@@ -6,6 +6,9 @@ class UserSession {
   final int? expiresAt;
   final bool isDemo;
 
+  /// Token for the separate ERP/leave server, when it issued one at login.
+  final String? erpToken;
+
   const UserSession({
     required this.token,
     required this.id,
@@ -13,11 +16,19 @@ class UserSession {
     required this.role,
     this.expiresAt,
     this.isDemo = false,
+    this.erpToken,
   });
 
   bool get isStudent => role.toLowerCase() == 'student';
-  bool get isTeacher => role.toLowerCase() == 'teacher' || role.toLowerCase() == 'faculty';
+  bool get isTeacher =>
+      role.toLowerCase() == 'teacher' || role.toLowerCase() == 'faculty';
   bool get isAdmin => role.toLowerCase() == 'admin';
+
+  bool get isExpired {
+    if (expiresAt == null || isDemo) return false;
+    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return expiresAt! <= nowSeconds;
+  }
 
   factory UserSession.fromJson(Map<String, dynamic> json) {
     return UserSession(
@@ -27,6 +38,7 @@ class UserSession {
       role: json['role'] as String? ?? 'student',
       expiresAt: json['expires_at'] as int?,
       isDemo: json['is_demo'] as bool? ?? false,
+      erpToken: json['erp_token'] as String?,
     );
   }
 
@@ -38,8 +50,19 @@ class UserSession {
       'role': role,
       'expires_at': expiresAt,
       'is_demo': isDemo,
+      'erp_token': erpToken,
     };
   }
+
+  UserSession withErpToken(String? token) => UserSession(
+    token: this.token,
+    id: id,
+    name: name,
+    role: role,
+    expiresAt: expiresAt,
+    isDemo: isDemo,
+    erpToken: token,
+  );
 
   static UserSession demoStudent() {
     return const UserSession(

@@ -1,16 +1,184 @@
 import 'package:flutter/material.dart';
 
 import '../../models/practical_activity.dart';
+import '../../widgets/code_editor.dart';
+import '../code_runner.dart';
 
-class CodeTestCase {
-  final String input;
-  final String expectedOutput;
-  final String description;
+/// Problem statement + tests for one programming challenge.
+class CodeChallengeSpec {
+  final String statement;
+  final String inputFormat;
+  final String outputFormat;
+  final String constraints;
+  final List<String> examples;
+  final String starterCode;
+  final List<CodeTestCase> tests; // visible and hidden
 
-  const CodeTestCase({
-    required this.input,
-    required this.expectedOutput,
-    required this.description,
+  const CodeChallengeSpec({
+    required this.statement,
+    required this.inputFormat,
+    required this.outputFormat,
+    required this.constraints,
+    required this.examples,
+    required this.starterCode,
+    required this.tests,
+  });
+
+  List<CodeTestCase> get visible => tests.where((t) => !t.hidden).toList();
+}
+
+class CodeChallenges {
+  static CodeChallengeSpec? of(String activityId) => _specs[activityId];
+
+  static const Map<String, CodeChallengeSpec> _specs = {
+    'cs_sum_two_numbers': CodeChallengeSpec(
+      statement: 'Write a function solve that takes two integers and returns their sum.',
+      inputFormat:
+          'Two integers a and b, passed as the arguments of solve(a, b).',
+      outputFormat: 'The integer a + b.',
+      constraints: '-1,000,000 ≤ a, b ≤ 1,000,000.',
+      examples: ['solve(2, 3)  ->  5', 'solve(-4, 10)  ->  6'],
+      starterCode: 'int solve(int a, int b) {\n  // write your code here\n  return 0;\n}\n',
+      tests: [
+        CodeTestCase(
+          call: 'solve(2, 3)',
+          expectedOutput: '5',
+          description: 'Small positive integers',
+        ),
+        CodeTestCase(
+          call: 'solve(-4, 10)',
+          expectedOutput: '6',
+          description: 'Negative and positive',
+        ),
+        CodeTestCase(
+          call: 'solve(0, 0)',
+          expectedOutput: '0',
+          description: 'Zero identity',
+        ),
+        CodeTestCase(
+          call: 'solve(1000000, 1000000)',
+          expectedOutput: '2000000',
+          description: 'Upper bound',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: 'solve(-1000000, -1)',
+          expectedOutput: '-1000001',
+          description: 'Both negative',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: 'solve(7, -7)',
+          expectedOutput: '0',
+          description: 'Cancels out',
+          hidden: true,
+        ),
+      ],
+    ),
+    'cs_even_or_odd': CodeChallengeSpec(
+      statement: "Write a function solve that takes an integer n and returns the text 'Even' if n is even, or 'Odd' if it is odd.",
+      inputFormat: 'One integer n, passed as solve(n).',
+      outputFormat:
+          "The exact text Even or Odd (capital first letter, nothing else).",
+      constraints: '-1,000,000 ≤ n ≤ 1,000,000. Zero is even; negative numbers can be odd too.',
+      examples: ["solve(4)  ->  Even", "solve(7)  ->  Odd"],
+      starterCode:
+          "String solve(int n) {\n  // write your code here\n  return '';\n}\n",
+      tests: [
+        CodeTestCase(
+          call: 'solve(4)',
+          expectedOutput: 'Even',
+          description: 'Positive even',
+        ),
+        CodeTestCase(
+          call: 'solve(7)',
+          expectedOutput: 'Odd',
+          description: 'Positive odd',
+        ),
+        CodeTestCase(
+          call: 'solve(0)',
+          expectedOutput: 'Even',
+          description: 'Zero is even',
+        ),
+        CodeTestCase(
+          call: 'solve(-3)',
+          expectedOutput: 'Odd',
+          description: 'Negative odd',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: 'solve(-8)',
+          expectedOutput: 'Even',
+          description: 'Negative even',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: 'solve(999999)',
+          expectedOutput: 'Odd',
+          description: 'Large odd',
+          hidden: true,
+        ),
+      ],
+    ),
+    'cs_reverse_string': CodeChallengeSpec(
+      statement: 'Write a function solve that takes a string s and returns s with its characters in reverse order.',
+      inputFormat: "One string s, passed as solve(s).",
+      outputFormat: 'The reversed string.',
+      constraints: '0 ≤ length of s ≤ 1000. The empty string reverses to the empty string.',
+      examples: ["solve('campus')  ->  supmac", "solve('radar')  ->  radar"],
+      starterCode: "String solve(String s) {\n  // write your code here\n  return '';\n}\n",
+      tests: [
+        CodeTestCase(
+          call: "solve('campus')",
+          expectedOutput: 'supmac',
+          description: 'Ordinary word',
+        ),
+        CodeTestCase(
+          call: "solve('radar')",
+          expectedOutput: 'radar',
+          description: 'Palindrome',
+        ),
+        CodeTestCase(
+          call: "solve('A')",
+          expectedOutput: 'A',
+          description: 'Single character',
+        ),
+        CodeTestCase(
+          call: "solve('')",
+          expectedOutput: '',
+          description: 'Empty string',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: "solve('ab cd')",
+          expectedOutput: 'dc ba',
+          description: 'Contains a space',
+          hidden: true,
+        ),
+        CodeTestCase(
+          call: "solve('12345')",
+          expectedOutput: '54321',
+          description: 'Digits',
+          hidden: true,
+        ),
+      ],
+    ),
+  };
+}
+
+/// One Run/Submit in the attempt history.
+class CodeAttempt {
+  final DateTime at;
+  final bool submitted;
+  final int passed;
+  final int total;
+  final String note;
+  const CodeAttempt({
+    required this.at,
+    required this.submitted,
+    required this.passed,
+    required this.total,
+    required this.note,
   });
 }
 
@@ -21,9 +189,11 @@ class CodeChallengeSimulation extends StatefulWidget {
   final VoidCallback onTriggerRecovery;
   final VoidCallback onCompleted;
   final int currentLives;
+  final bool blockPaste; // only tests turn this off
 
   const CodeChallengeSimulation({
     super.key,
+    this.blockPaste = true,
     required this.activity,
     required this.onLifeDeducted,
     required this.onUnlockHint,
@@ -38,322 +208,387 @@ class CodeChallengeSimulation extends StatefulWidget {
 }
 
 class _CodeChallengeSimulationState extends State<CodeChallengeSimulation> {
-  final TextEditingController _solutionController = TextEditingController();
-  List<bool?> _testResults = [];
-  bool _executed = false;
-  bool _allPassed = false;
+  late final DartHighlightController _code;
+  CodeChallengeSpec? get _spec => CodeChallenges.of(widget.activity.id);
 
-  List<CodeTestCase> get _testCases {
-    switch (widget.activity.id) {
-      case 'cs_sum_two_numbers':
-        return const [
-          CodeTestCase(
-            input: 'a = 2, b = 3',
-            expectedOutput: '5',
-            description: 'Small positive integers',
-          ),
-          CodeTestCase(
-            input: 'a = -4, b = 10',
-            expectedOutput: '6',
-            description: 'Negative and positive integers',
-          ),
-          CodeTestCase(
-            input: 'a = 0, b = 0',
-            expectedOutput: '0',
-            description: 'Zero identity case',
-          ),
-        ];
-      case 'cs_even_or_odd':
-        return const [
-          CodeTestCase(
-            input: 'number = 4',
-            expectedOutput: 'Even',
-            description: 'Standard positive even number',
-          ),
-          CodeTestCase(
-            input: 'number = 7',
-            expectedOutput: 'Odd',
-            description: 'Standard positive odd number',
-          ),
-          CodeTestCase(
-            input: 'number = 0',
-            expectedOutput: 'Even',
-            description: 'Zero is even',
-          ),
-        ];
-      case 'cs_reverse_string':
-        return const [
-          CodeTestCase(
-            input: "text = 'campus'",
-            expectedOutput: "'supmac'",
-            description: 'Standard lowercase word',
-          ),
-          CodeTestCase(
-            input: "text = 'radar'",
-            expectedOutput: "'radar'",
-            description: 'Palindrome word',
-          ),
-          CodeTestCase(
-            input: "text = 'A'",
-            expectedOutput: "'A'",
-            description: 'Single character boundary',
-          ),
-        ];
-      default:
-        return const [
-          CodeTestCase(
-            input: 'test = 1',
-            expectedOutput: '1',
-            description: 'Generic test',
-          ),
-        ];
-    }
-  }
+  String _language = DartCodeRunner.language;
+  bool _busy = false;
+  bool _passedAll = false;
+  List<(CodeTestCase, CaseResult)> _results = [];
+  final List<CodeAttempt> _history = [];
+  String? _banner; // runner / paste notices
 
-  void _runChecks() {
-    final code = _solutionController.text.trim();
-    if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your solution implementation.'),
-        ),
-      );
-      return;
-    }
-
-    final lower = code.toLowerCase();
-    List<bool> results = [];
-
-    switch (widget.activity.id) {
-      case 'cs_sum_two_numbers':
-        final bool valid =
-            (lower.contains('a + b') ||
-                lower.contains('return a+b') ||
-                lower.contains('return a + b')) &&
-            !lower.contains('fail');
-        results = [valid, valid, valid];
-        break;
-      case 'cs_even_or_odd':
-        final bool valid =
-            (lower.contains('% 2') || lower.contains('%2')) &&
-            (lower.contains('even') && lower.contains('odd'));
-        results = [valid, valid, valid];
-        break;
-      case 'cs_reverse_string':
-        final bool valid =
-            (lower.contains('reversed') ||
-                lower.contains('split') ||
-                lower.contains('for') ||
-                lower.contains('while')) &&
-            !lower.contains('fail');
-        results = [valid, valid, valid];
-        break;
-      default:
-        results = [true];
-    }
-
-    final bool allGood = results.every((r) => r);
-
-    setState(() {
-      _testResults = results;
-      _executed = true;
-      _allPassed = allGood;
-    });
-
-    if (allGood) {
-      widget.onCompleted();
-    } else {
-      widget.onLifeDeducted();
-      widget.onUnlockHint();
-      if (widget.currentLives <= 1) {
-        widget.onTriggerRecovery();
-      }
-    }
+  @override
+  void initState() {
+    super.initState();
+    _code = DartHighlightController(text: _spec?.starterCode ?? '');
   }
 
   @override
   void dispose() {
-    _solutionController.dispose();
+    _code.dispose();
     super.dispose();
+  }
+
+  Future<void> _execute({required bool submit}) async {
+    final spec = _spec;
+    if (spec == null || _busy) return;
+    final source = _code.text;
+    if (source.trim().isEmpty) {
+      setState(() => _banner = 'Write some code first.');
+      return;
+    }
+    final tests = submit ? spec.tests : spec.visible;
+    setState(() {
+      _busy = true;
+      _banner = null;
+      _results = [];
+    });
+
+    final results = <(CodeTestCase, CaseResult)>[];
+    for (final t in tests) {
+      final r = await DartCodeRunner.runCase(source, t);
+      results.add((t, r));
+      // A compile error or runner failure repeats identically for every test: stop early.
+      if (r.status == CaseStatus.compileError ||
+          r.status == CaseStatus.runnerFailure)
+        break;
+    }
+    if (!mounted) return;
+
+    final passed = results.where((e) => e.$2.passed).length;
+    final allPassed = results.length == tests.length && passed == tests.length;
+    final runnerFailed = results.any(
+      (e) => e.$2.status == CaseStatus.runnerFailure,
+    );
+    final compileError = results.any(
+      (e) => e.$2.status == CaseStatus.compileError,
+    );
+
+    setState(() {
+      _busy = false;
+      _results = results;
+      _passedAll = submit && allPassed;
+      _history.insert(
+        0,
+        CodeAttempt(
+          at: DateTime.now(),
+          submitted: submit,
+          passed: passed,
+          total: tests.length,
+          note: runnerFailed
+              ? 'Runner problem (not counted)'
+              : compileError
+              ? 'Compile error'
+              : allPassed
+              ? 'All tests passed'
+              : '${tests.length - passed} failing',
+        ),
+      );
+      if (runnerFailed) _banner = 'The code runner had a problem. Nothing was counted against you; try again.';
+    });
+
+    if (!submit || runnerFailed)
+      return; // Run is free practice; a runner outage never costs a life
+    if (allPassed) {
+      widget.onCompleted();
+    } else {
+      widget.onLifeDeducted();
+      widget.onUnlockHint();
+      if (widget.currentLives <= 1) widget.onTriggerRecovery();
+    }
+  }
+
+  Widget _kv(String k, String v) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 78,
+          child: Text(
+            k,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF46566F),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(v, style: const TextStyle(fontSize: 12.5, height: 1.35)),
+        ),
+      ],
+    ),
+  );
+
+  Widget _resultRow((CodeTestCase, CaseResult) e) {
+    final t = e.$1, r = e.$2;
+    final ok = r.passed;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: ok ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: ok ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            ok ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            size: 18,
+            color: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.hidden
+                      ? 'Hidden test: ${t.description}'
+                      : '${t.description}   ${t.call}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (!t.hidden)
+                  Text(
+                    'expected: ${t.expectedOutput.isEmpty ? '(empty)' : t.expectedOutput}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                if (!ok && r.status == CaseStatus.wrongAnswer && !t.hidden)
+                  Text(
+                    'got:      ${r.actual.isEmpty ? '(empty)' : r.actual}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                if (!ok && r.status != CaseStatus.wrongAnswer)
+                  Text(
+                    _statusLabel(r),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF991B1B),
+                    ),
+                  ),
+                if (!ok && t.hidden)
+                  const Text(
+                    'Your output differs on this hidden input.',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF991B1B)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(CaseResult r) {
+    switch (r.status) {
+      case CaseStatus.compileError:
+        return 'Compile error: ${r.message}';
+      case CaseStatus.runtimeError:
+        return 'Runtime error: ${r.message}';
+      case CaseStatus.timeout:
+        return r.message;
+      case CaseStatus.runnerFailure:
+        return r.message;
+      default:
+        return r.message;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tests = _testCases;
+    final spec = _spec;
+    if (spec == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('This challenge has no test cases configured yet.'),
+        ),
+      );
+    }
+    final passedCount = _results.where((e) => e.$2.passed).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Problem Description
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Problem Description',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  'Problem',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  widget.activity.objective,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF334155),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Examples:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                for (final tc in tests.take(2))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: Text(
-                      '• Input: ${tc.input} ➔ Output: ${tc.expectedOutput}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Solution Editor
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.terminal_rounded,
-                      size: 18,
-                      color: Color(0xFF2563EB),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Write Your Solution',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                  spec.statement,
+                  style: const TextStyle(fontSize: 13, height: 1.4),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  key: const Key('practiverse-solution-input'),
-                  controller: _solutionController,
-                  maxLines: 4,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                  decoration: const InputDecoration(
-                    hintText:
-                        '// Enter code or logic here\n// e.g. return a + b;',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    key: const Key('practiverse-check'),
-                    onPressed: _runChecks,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Run checks'),
-                  ),
-                ),
+                _kv('Input', spec.inputFormat),
+                _kv('Output', spec.outputFormat),
+                _kv('Constraints', spec.constraints),
+                _kv('Examples', spec.examples.join('\n')),
               ],
             ),
           ),
         ),
-
-        // Test Cases Outcome
-        if (_executed) ...[
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _allPassed
-                            ? Icons.check_circle_rounded
-                            : Icons.cancel_rounded,
-                        color: _allPassed
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFFDC2626),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _allPassed
-                            ? 'All Test Cases Passed!'
-                            : 'Some Test Cases Failed',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: _allPassed
-                              ? const Color(0xFF166534)
-                              : const Color(0xFF991B1B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  for (int i = 0; i < tests.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            (_testResults.length > i && _testResults[i] == true)
-                                ? Icons.check_circle_outline_rounded
-                                : Icons.highlight_off_rounded,
-                            size: 16,
-                            color:
-                                (_testResults.length > i &&
-                                    _testResults[i] == true)
-                                ? const Color(0xFF16A34A)
-                                : const Color(0xFFDC2626),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Test ${i + 1}: ${tests[i].description} (${tests[i].input})',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Text(
+              'Language: ',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            DropdownButton<String>(
+              key: const Key('code-language'),
+              value: _language,
+              items: const [
+                DropdownMenuItem(value: 'Dart', child: Text('Dart')),
+              ],
+              onChanged: (v) => setState(() => _language = v ?? _language),
+            ),
+          ],
+        ),
+        const Text(
+          'Only languages with a configured sandbox are listed. Python, Java or C++ need a server-side runner that is not set up in this build.',
+          style: TextStyle(fontSize: 11.5, color: Color(0xFF56667F)),
+        ),
+        const SizedBox(height: 8),
+        CodeEditor(
+          controller: _code,
+          blockPaste: widget.blockPaste,
+          onPasteBlocked: () => setState(
+            () => _banner = 'Pasting code is disabled during practicals. Type your solution yourself.',
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Paste is disabled here because typing helps you learn. This is a classroom deterrent only; it cannot stop screenshots or other apps.',
+          style: TextStyle(fontSize: 11, color: Color(0xFF56667F)),
+        ),
+        if (_banner != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            key: const Key('code-banner'),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _banner!,
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF92400E)),
             ),
           ),
+        ],
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const Key('code-run'),
+                onPressed: _busy ? null : () => _execute(submit: false),
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text('Run visible tests'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                key: const Key('practiverse-check'),
+                onPressed: _busy ? null : () => _execute(submit: true),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: const Text('Submit'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0E7C86),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Reset to starter code',
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => _code.text = spec.starterCode),
+              icon: const Icon(Icons.restart_alt_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Run is free practice. A failed Submit costs one life; a runner problem never does.',
+          style: TextStyle(fontSize: 11, color: Color(0xFF56667F)),
+        ),
+        if (_busy)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Compiling and running your code...',
+                  style: TextStyle(fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+        if (_results.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            _passedAll
+                ? 'All tests passed: challenge complete'
+                : 'Results: $passedCount / ${_results.length} tests passed',
+            key: const Key('code-summary'),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: _passedAll
+                  ? const Color(0xFF166534)
+                  : const Color(0xFF2C3C58),
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final e in _results) _resultRow(e),
+        ],
+        if (_history.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Attempt history',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          for (var i = 0; i < _history.length; i++)
+            Text(
+              '#${_history.length - i}  ${_history[i].submitted ? 'Submit' : 'Run'}  ${_history[i].at.hour.toString().padLeft(2, '0')}:${_history[i].at.minute.toString().padLeft(2, '0')}:${_history[i].at.second.toString().padLeft(2, '0')}'
+              '   ${_history[i].passed}/${_history[i].total}   ${_history[i].note}',
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontFamily: 'monospace',
+                color: Color(0xFF46566F),
+              ),
+            ),
         ],
       ],
     );

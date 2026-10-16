@@ -14,12 +14,12 @@ class BeakerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final glassPaint = Paint()
-      ..color = const Color(0xFF334155)
+      ..color = const Color(0xFF2C3C58)
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
 
     final tickPaint = Paint()
-      ..color = const Color(0xFF64748B)
+      ..color = const Color(0xFF56667F)
       ..strokeWidth = 1.5;
 
     // Beaker body geometry

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../models/leave_application.dart';
 
@@ -37,8 +38,22 @@ class LeaveDetailSheet extends StatelessWidget {
   }
 
   String _formatDateTime(DateTime dt) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final time =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     return '${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}, ${dt.year} at $time';
   }
 
@@ -49,7 +64,7 @@ class LeaveDetailSheet extends StatelessWidget {
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.glassFillStrong,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -93,11 +108,16 @@ class LeaveDetailSheet extends StatelessWidget {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: leave.status.backgroundColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: leave.status.color.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: leave.status.color.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     leave.status.displayName,
@@ -130,9 +150,13 @@ class LeaveDetailSheet extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 22,
-                        backgroundColor: AppColors.primaryLight.withValues(alpha: 0.15),
+                        backgroundColor: AppColors.primaryLight.withValues(
+                          alpha: 0.15,
+                        ),
                         child: Text(
-                          leave.applicantName.isNotEmpty ? leave.applicantName[0].toUpperCase() : 'U',
+                          leave.applicantName.isNotEmpty
+                              ? leave.applicantName[0].toUpperCase()
+                              : 'U',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -193,7 +217,8 @@ class LeaveDetailSheet extends StatelessWidget {
                       child: _buildInfoTile(
                         icon: Icons.timelapse_outlined,
                         label: 'Duration',
-                        value: '${leave.durationDays} ${leave.durationDays == 1 ? "Day" : "Days"}',
+                        value:
+                            '${leave.durationDays} ${leave.durationDays == 1 ? "Day" : "Days"}',
                       ),
                     ),
                   ],
@@ -206,7 +231,10 @@ class LeaveDetailSheet extends StatelessWidget {
                       child: _buildInfoTile(
                         icon: Icons.play_circle_outline,
                         label: 'Start Date',
-                        value: leave.startDate.toIso8601String().substring(0, 10),
+                        value: leave.startDate.toIso8601String().substring(
+                          0,
+                          10,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -235,7 +263,7 @@ class LeaveDetailSheet extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.glassFillStrong,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.border),
                   ),
@@ -251,7 +279,8 @@ class LeaveDetailSheet extends StatelessWidget {
                 const SizedBox(height: 14),
 
                 // Destination & Emergency Details
-                if (leave.destinationAddress != null && leave.destinationAddress!.isNotEmpty) ...[
+                if (leave.destinationAddress != null &&
+                    leave.destinationAddress!.isNotEmpty) ...[
                   _buildDetailRow(
                     icon: Icons.location_on_outlined,
                     label: 'Destination Address',
@@ -260,7 +289,8 @@ class LeaveDetailSheet extends StatelessWidget {
                   const SizedBox(height: 8),
                 ],
 
-                if (leave.emergencyContact != null && leave.emergencyContact!.isNotEmpty) ...[
+                if (leave.emergencyContact != null &&
+                    leave.emergencyContact!.isNotEmpty) ...[
                   _buildDetailRow(
                     icon: Icons.phone_outlined,
                     label: 'Emergency Contact',
@@ -285,10 +315,14 @@ class LeaveDetailSheet extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: leave.isApproved ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                      color: leave.isApproved
+                          ? const Color(0xFFF0FDF4)
+                          : const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: leave.isApproved ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                        color: leave.isApproved
+                            ? const Color(0xFFBBF7D0)
+                            : const Color(0xFFFECACA),
                       ),
                     ),
                     child: Column(
@@ -298,7 +332,9 @@ class LeaveDetailSheet extends StatelessWidget {
                           children: [
                             Icon(
                               leave.isApproved ? Icons.verified : Icons.cancel,
-                              color: leave.isApproved ? AppColors.success : AppColors.error,
+                              color: leave.isApproved
+                                  ? AppColors.success
+                                  : AppColors.error,
                               size: 16,
                             ),
                             const SizedBox(width: 6),
@@ -307,7 +343,9 @@ class LeaveDetailSheet extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: leave.isApproved ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                                color: leave.isApproved
+                                    ? const Color(0xFF166534)
+                                    : const Color(0xFF991B1B),
                               ),
                             ),
                           ],
@@ -316,14 +354,21 @@ class LeaveDetailSheet extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             _formatDateTime(leave.decidedAt!),
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
-                        if (leave.decisionRemarks != null && leave.decisionRemarks!.isNotEmpty) ...[
+                        if (leave.decisionRemarks != null &&
+                            leave.decisionRemarks!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(
                             'Remarks: ${leave.decisionRemarks!}',
-                            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ],
                       ],
@@ -350,9 +395,17 @@ class LeaveDetailSheet extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                   ),
                   child: leave.auditTrail.isEmpty
-                      ? const Text('No audit events logged.', style: TextStyle(fontSize: 12, color: AppColors.textMuted))
+                      ? const Text(
+                          'No audit events logged.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        )
                       : Column(
-                          children: List.generate(leave.auditTrail.length, (idx) {
+                          children: List.generate(leave.auditTrail.length, (
+                            idx,
+                          ) {
                             final entry = leave.auditTrail[idx];
                             final isLast = idx == leave.auditTrail.length - 1;
                             return Row(
@@ -379,12 +432,16 @@ class LeaveDetailSheet extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Padding(
-                                    padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                                    padding: EdgeInsets.only(
+                                      bottom: isLast ? 0 : 12,
+                                    ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               '${entry.action} by ${entry.actorName}',
@@ -395,7 +452,9 @@ class LeaveDetailSheet extends StatelessWidget {
                                               ),
                                             ),
                                             Text(
-                                              entry.timestamp.toIso8601String().substring(11, 16),
+                                              entry.timestamp
+                                                  .toIso8601String()
+                                                  .substring(11, 16),
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontFamily: 'monospace',
@@ -407,7 +466,10 @@ class LeaveDetailSheet extends StatelessWidget {
                                         if (entry.remarks.isNotEmpty)
                                           Text(
                                             entry.remarks,
-                                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.textSecondary,
+                                            ),
                                           ),
                                       ],
                                     ),
@@ -427,7 +489,7 @@ class LeaveDetailSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.glassFillStrong,
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Row(
@@ -465,7 +527,7 @@ class LeaveDetailSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.glassFillStrong,
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: OutlinedButton.icon(
@@ -487,7 +549,11 @@ class LeaveDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoTile({required IconData icon, required String label, required String value}) {
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -505,7 +571,10 @@ class LeaveDetailSheet extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Text(
                   value,
@@ -525,7 +594,11 @@ class LeaveDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow({required IconData icon, required String label, required String value}) {
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -534,10 +607,19 @@ class LeaveDetailSheet extends StatelessWidget {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
               children: [
-                TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-                TextSpan(text: value, style: const TextStyle(color: AppColors.textPrimary)),
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
               ],
             ),
           ),

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../models/practical_activity.dart';
 import '../models/student_progress.dart';
 import '../widgets/lives_display_badge.dart';
+import '../models/practical_brief.dart';
+import '../widgets/practical_brief_card.dart';
 import '../widgets/progressive_hint_card.dart';
 import '../widgets/recovery_question_dialog.dart';
 import '../engine/simulation_renderers/ohms_law_simulation.dart';
@@ -124,7 +126,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
+                          color: const Color(0xFF0E7C86),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -140,7 +142,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                         'Difficulty: ${widget.activity.difficulty}',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: Color(0xFF56667F),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -151,13 +153,17 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                     widget.activity.objective,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF1E293B),
+                      color: Color(0xFF1B2B4B),
                       height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Consistent task brief: objective, task, steps, inputs, expected result, validation
+            PracticalBriefCard(brief: PracticalBriefs.of(widget.activity)),
             const SizedBox(height: 12),
 
             // Incremental Hint Card
@@ -203,11 +209,13 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'You successfully predicted the mathematical outcome within experimental tolerance limits. Verify your conceptual retention with a short diagnostic quiz.',
+                    Text(
+                      widget.activity.kind == ActivityKind.codingChallenge
+                          ? 'Your code compiled and passed every visible and hidden test. Verify your conceptual retention with a short diagnostic quiz.'
+                          : 'You successfully predicted the mathematical outcome within the tolerance limit. Verify your conceptual retention with a short diagnostic quiz.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF334155),
+                        color: Color(0xFF2C3C58),
                         height: 1.4,
                       ),
                     ),
@@ -303,7 +311,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
               children: [
                 const Icon(
                   Icons.open_in_browser_rounded,
-                  color: Color(0xFF2563EB),
+                  color: Color(0xFF0E7C86),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -329,7 +337,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
             const SizedBox(height: 6),
             Text(
               lab.description,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF46566F)),
             ),
             const SizedBox(height: 12),
             Container(
@@ -346,7 +354,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 11,
-                        color: Color(0xFF334155),
+                        color: Color(0xFF2C3C58),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

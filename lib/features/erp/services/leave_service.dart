@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '../../../core/network/api_client.dart';
+import '../../auth/services/auth_service.dart';
 import '../models/employee_profile.dart';
 import '../models/leave_application.dart';
 import '../models/student_academic_profile.dart';
@@ -35,7 +38,35 @@ class LeaveService {
 
   /// When true, attempts live API synchronization with backend server.
   /// Automatically disabled in unit/widget test environments where HttpClient is mocked by Flutter.
-  static bool syncWithServer = !Platform.environment.containsKey('FLUTTER_TEST');
+  static bool syncWithServer = !Platform.environment.containsKey(
+    'FLUTTER_TEST',
+  );
+
+  /// True when no real backend session is active: tests, demo logins, or no login at all.
+  /// In that case leaves live only on this device and the UI must say so. Real (non-demo)
+  /// sessions never fall back to local storage: they hit the ERP server or fail loudly.
+  bool get isLocalOnly =>
+      !syncWithServer ||
+      (AuthService.instance.currentSession.value?.isDemo ?? true);
+
+  /// Demo/local mode only: who approves each employee's leave (live mode uses the server's assignments).
+  static const Map<String, String> _localEmployeeApprovers = {
+    'FAC-CS-12': 'FAC-CS-08',
+    'WARDEN-YAMUNA': 'ADMIN01',
+    'FAC-CS-08': 'ADMIN01',
+  };
+
+  Never _mapServerError(ApiException e) {
+    if (e.statusCode == 401 || e.statusCode == 403)
+      throw ErpAuthException(e.message);
+    if (e.statusCode == 409) throw ErpConflictException(e.message);
+    throw ErpValidationException(e.message);
+  }
+
+  List<LeaveApplication> _parseItems(Map<String, dynamic> res) =>
+      ((res['items'] as List?) ?? const [])
+          .map((e) => LeaveApplication.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const String _storageKeyLeaves = 'campusos_erp_leaves_v1';
@@ -63,7 +94,9 @@ class LeaveService {
         final decoded = jsonDecode(jsonStr) as List<dynamic>;
         _inMemoryLeaves.clear();
         for (final item in decoded) {
-          _inMemoryLeaves.add(LeaveApplication.fromJson(item as Map<String, dynamic>));
+          _inMemoryLeaves.add(
+            LeaveApplication.fromJson(item as Map<String, dynamic>),
+          );
         }
       }
     } catch (e) {
@@ -176,7 +209,8 @@ class LeaveService {
         leaveType: 'Hostel Outing',
         startDate: now.add(const Duration(days: 1)),
         endDate: now.add(const Duration(days: 3)),
-        reason: 'Attending Smart India Hackathon zonal round at IIT Delhi campus',
+        reason:
+            'Attending Smart India Hackathon zonal round at IIT Delhi campus',
         destinationAddress: 'IIT Delhi, Hauz Khas, New Delhi',
         emergencyContact: '+91 98765 12345',
         status: LeaveStatus.pending,
@@ -253,7 +287,8 @@ class LeaveService {
             actorName: 'Vikram Singh',
             actorRole: 'student',
             action: 'SUBMITTED',
-            remarks: 'Medical leave submitted with clinic prescription reference',
+            remarks:
+                'Medical leave submitted with clinic prescription reference',
             timestamp: now.subtract(const Duration(hours: 1)),
           ),
         ],
@@ -267,7 +302,8 @@ class LeaveService {
         leaveType: 'Duty Leave',
         startDate: now.add(const Duration(days: 4)),
         endDate: now.add(const Duration(days: 6)),
-        reason: 'Delivering keynote lecture at IEEE National Computing Conference',
+        reason:
+            'Delivering keynote lecture at IEEE National Computing Conference',
         status: LeaveStatus.pending,
         appliedAt: now.subtract(const Duration(hours: 8)),
         auditTrail: [
@@ -308,10 +344,14 @@ class LeaveService {
       throw const ErpValidationException('Reason for leave is required.');
     }
     if (cleanReason.length < 10) {
-      throw const ErpValidationException('Please provide a substantive reason (minimum 10 characters).');
+      throw const ErpValidationException(
+        'Please provide a substantive reason (minimum 10 characters).',
+      );
     }
     if (leaveType.trim().isEmpty) {
-      throw const ErpValidationException('Please select a valid leave category.');
+      throw const ErpValidationException(
+        'Please select a valid leave category.',
+      );
     }
 
     // 2. Date Validation
@@ -319,12 +359,20 @@ class LeaveService {
     final endDay = DateTime(endDate.year, endDate.month, endDate.day);
 
     if (endDay.isBefore(startDay)) {
-      throw const ErpValidationException('Leave end date cannot precede the start date.');
+      throw const ErpValidationException(
+        'Leave end date cannot precede the start date.',
+      );
     }
 
-    final nowDay = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final nowDay = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
     if (startDay.isBefore(nowDay.subtract(const Duration(days: 2)))) {
-      throw const ErpValidationException('Leave cannot be requested for past dates older than 48 hours.');
+      throw const ErpValidationException(
+        'Leave cannot be requested for past dates older than 48 hours.',
+      );
     }
 
     // 3. Resolve Assigned Warden according to student hostel / department
@@ -343,7 +391,8 @@ class LeaveService {
       }
     }
 
-    final newId = 'LEAVE-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    final newId =
+        'LEAVE-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     final now = DateTime.now();
 
     final localApplication = LeaveApplication(
@@ -374,32 +423,26 @@ class LeaveService {
       ],
     );
 
-    // 4. Try sending to server first if live sync enabled
-    if (syncWithServer) {
+    // 4. Real session: the ERP server is the source of truth. No silent local fallback.
+    if (!isLocalOnly) {
       try {
-        final res = await ApiClient.post('/api/erp/leaves', localApplication.toJson());
-        if (res.isNotEmpty && res['id'] != null) {
-          final serverApp = LeaveApplication.fromJson(res);
-          _upsertInMemory(serverApp);
-          await _persistLeaves();
-          return serverApp;
+        final res = await ApiClient.post(
+          '/api/erp/leaves',
+          localApplication.toJson(),
+          erp: true,
+        );
+        if (res['id'] == null) {
+          throw const ErpValidationException(
+            'Unexpected response from ERP server.',
+          );
         }
+        return LeaveApplication.fromJson(res);
       } on ApiException catch (e) {
-        if (e.statusCode == 400) {
-          throw ErpValidationException(e.message);
-        } else if (e.statusCode == 401 || e.statusCode == 403) {
-          throw ErpAuthException(e.message);
-        } else if (e.statusCode == 409) {
-          throw ErpConflictException(e.message);
-        } else if (e.statusCode != 0) {
-          throw ErpValidationException(e.message);
-        }
-        // If statusCode == 0, backend server is offline in this environment;
-        // proceed with persistent local storage
+        _mapServerError(e);
       }
     }
 
-    // 5. Persistent local storage fallback
+    // 5. Demo / local-only mode
     _upsertInMemory(localApplication);
     await _persistLeaves();
     return localApplication;
@@ -410,27 +453,21 @@ class LeaveService {
   }) async {
     await initialize();
 
-    // Try live server sync if enabled
-    if (syncWithServer) {
+    if (!isLocalOnly) {
       try {
-        final res = await ApiClient.get('/api/erp/leaves/student/$studentId');
-        if (res['items'] is List) {
-          final list = (res['items'] as List)
-              .map((e) => LeaveApplication.fromJson(e as Map<String, dynamic>))
-              .toList();
-          for (final app in list) {
-            _upsertInMemory(app);
-          }
-          await _persistLeaves();
-        }
-      } catch (_) {
-        // Backend offline fallback
+        return _parseItems(
+          await ApiClient.get('/api/erp/leaves/student/$studentId', erp: true),
+        );
+      } on ApiException catch (e) {
+        _mapServerError(e);
       }
     }
 
     // Return only leaves belonging to this authenticated student
     return _inMemoryLeaves
-        .where((l) => l.applicantId == studentId && l.applicantRole == 'student')
+        .where(
+          (l) => l.applicantId == studentId && l.applicantRole == 'student',
+        )
         .toList();
   }
 
@@ -441,6 +478,17 @@ class LeaveService {
   }) async {
     await initialize();
 
+    if (!isLocalOnly) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves/$leaveId/cancel', {
+          'reason': cancellationReason ?? 'Cancelled by applicant student',
+        }, erp: true);
+        return LeaveApplication.fromJson(res);
+      } on ApiException catch (e) {
+        _mapServerError(e);
+      }
+    }
+
     final index = _inMemoryLeaves.indexWhere((l) => l.id == leaveId);
     if (index == -1) {
       throw const ErpValidationException('Leave application not found.');
@@ -450,7 +498,9 @@ class LeaveService {
 
     // Authorization check
     if (current.applicantId != authenticatedStudentId) {
-      throw const ErpAuthException('Unauthorized: You cannot cancel another student\'s leave.');
+      throw const ErpAuthException(
+        'Unauthorized: You cannot cancel another student\'s leave.',
+      );
     }
 
     // State transition guard
@@ -458,25 +508,6 @@ class LeaveService {
       throw ErpConflictException(
         'Cannot cancel leave: current status is ${current.status.displayName}. Only PENDING leaves can be cancelled.',
       );
-    }
-
-    // Try server cancellation first if live sync enabled
-    if (syncWithServer) {
-      try {
-        final res = await ApiClient.post('/api/erp/leaves/$leaveId/cancel', {
-          'reason': cancellationReason ?? 'Cancelled by applicant student',
-        });
-        if (res.isNotEmpty && res['id'] != null) {
-          final serverApp = LeaveApplication.fromJson(res);
-          _upsertInMemory(serverApp);
-          await _persistLeaves();
-          return serverApp;
-        }
-      } on ApiException catch (e) {
-        if (e.statusCode == 403) throw ErpAuthException(e.message);
-        if (e.statusCode == 409) throw ErpConflictException(e.message);
-        if (e.statusCode != 0) throw ErpValidationException(e.message);
-      }
     }
 
     final now = DateTime.now();
@@ -515,30 +546,26 @@ class LeaveService {
     await initialize();
 
     final normalizedRole = role.toLowerCase().trim();
-    final isAuthorized = normalizedRole == 'admin' ||
+    final isAuthorized =
+        normalizedRole == 'admin' ||
         normalizedRole == 'teacher' ||
         normalizedRole == 'faculty' ||
         normalizedRole == 'warden';
 
     if (!isAuthorized) {
-      throw const ErpAuthException('Access Denied: Warden or administrative privileges required.');
+      throw const ErpAuthException(
+        'Access Denied: Warden or administrative privileges required.',
+      );
     }
 
-    // Try live server sync if enabled
-    if (syncWithServer) {
+    if (!isLocalOnly) {
       try {
-        final res = await ApiClient.get('/api/erp/leaves/warden/$wardenId');
-        if (res['items'] is List) {
-          final list = (res['items'] as List)
-              .map((e) => LeaveApplication.fromJson(e as Map<String, dynamic>))
-              .toList();
-          for (final app in list) {
-            _upsertInMemory(app);
-          }
-          await _persistLeaves();
-        }
-      } catch (_) {
-        // Offline fallback
+        final q = pendingOnly ? '' : '?status=all';
+        return _parseItems(
+          await ApiClient.get('/api/erp/leaves/warden/$wardenId$q', erp: true),
+        );
+      } on ApiException catch (e) {
+        _mapServerError(e);
       }
     }
 
@@ -582,13 +609,28 @@ class LeaveService {
     await initialize();
 
     final normalizedRole = approverRole.toLowerCase().trim();
-    final isAuthorized = normalizedRole == 'admin' ||
+    final isAuthorized =
+        normalizedRole == 'admin' ||
         normalizedRole == 'teacher' ||
         normalizedRole == 'faculty' ||
         normalizedRole == 'warden';
 
     if (!isAuthorized) {
-      throw const ErpAuthException('Access Denied: You do not have approver privileges.');
+      throw const ErpAuthException(
+        'Access Denied: You do not have approver privileges.',
+      );
+    }
+
+    if (!isLocalOnly) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves/$leaveId/decision', {
+          'status': approve ? 'approved' : 'rejected',
+          'remarks': remarks,
+        }, erp: true);
+        return LeaveApplication.fromJson(res);
+      } on ApiException catch (e) {
+        _mapServerError(e);
+      }
     }
 
     final index = _inMemoryLeaves.indexWhere((l) => l.id == leaveId);
@@ -605,8 +647,17 @@ class LeaveService {
       );
     }
 
-    // Scope check: Ensure approver is assigned to this student (unless admin)
-    if (normalizedRole != 'admin') {
+    // Employee leave: only the explicitly assigned approver (or admin), never the applicant.
+    if (current.applicantRole == 'employee') {
+      if (current.applicantId == approverId ||
+          (normalizedRole != 'admin' &&
+              current.assignedWardenId != approverId)) {
+        throw const ErpAuthException(
+          'Access denied: you are not the assigned approver for this employee.',
+        );
+      }
+    } else if (normalizedRole != 'admin') {
+      // Student leave scope check: approver must be the assigned warden (unless admin)
       bool isAssigned = false;
       for (final a in _wardenAssignments) {
         if (a.wardenId == approverId &&
@@ -626,31 +677,11 @@ class LeaveService {
       }
     }
 
-    // Try live server decision if enabled
-    if (syncWithServer) {
-      try {
-        final res = await ApiClient.post('/api/erp/leaves/$leaveId/decision', {
-          'status': approve ? 'approved' : 'rejected',
-          'remarks': remarks,
-          'decidedBy': approverName,
-          'decidedById': approverId,
-        });
-        if (res.isNotEmpty && res['id'] != null) {
-          final serverApp = LeaveApplication.fromJson(res);
-          _upsertInMemory(serverApp);
-          await _persistLeaves();
-          return serverApp;
-        }
-      } on ApiException catch (e) {
-        if (e.statusCode == 403) throw ErpAuthException(e.message);
-        if (e.statusCode == 409) throw ErpConflictException(e.message);
-        if (e.statusCode != 0) throw ErpValidationException(e.message);
-      }
-    }
-
     final now = DateTime.now();
     final newStatus = approve ? LeaveStatus.approved : LeaveStatus.rejected;
-    final cleanRemarks = remarks?.trim() ?? (approve ? 'Approved by Warden' : 'Rejected by Warden');
+    final cleanRemarks =
+        remarks?.trim() ??
+        (approve ? 'Approved by Warden' : 'Rejected by Warden');
 
     final updatedAudit = List<LeaveAuditEntry>.from(current.auditTrail)
       ..add(
@@ -696,7 +727,9 @@ class LeaveService {
 
     final cleanReason = reason.trim();
     if (cleanReason.isEmpty || cleanReason.length < 5) {
-      throw const ErpValidationException('Substantive reason is required for official leave record.');
+      throw const ErpValidationException(
+        'Substantive reason is required for official leave record.',
+      );
     }
 
     final startDay = DateTime(startDate.year, startDate.month, startDate.day);
@@ -706,7 +739,26 @@ class LeaveService {
       throw const ErpValidationException('End date cannot precede start date.');
     }
 
-    final newId = 'LEAVE-EMP-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    if (!isLocalOnly) {
+      try {
+        final res = await ApiClient.post('/api/erp/leaves', {
+          'leaveType': leaveType,
+          'startDate': startDay.toUtc().toIso8601String(),
+          'endDate': endDay.toUtc().toIso8601String(),
+          'reason': cleanReason,
+        }, erp: true);
+        if (res['id'] == null)
+          throw const ErpValidationException(
+            'Unexpected response from ERP server.',
+          );
+        return LeaveApplication.fromJson(res);
+      } on ApiException catch (e) {
+        _mapServerError(e);
+      }
+    }
+
+    final newId =
+        'LEAVE-EMP-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
     final now = DateTime.now();
 
     final application = LeaveApplication(
@@ -715,6 +767,7 @@ class LeaveService {
       applicantName: employeeName,
       applicantRole: 'employee',
       department: department,
+      assignedWardenId: _localEmployeeApprovers[employeeId],
       leaveType: leaveType,
       startDate: startDay,
       endDate: endDay,
@@ -742,8 +795,22 @@ class LeaveService {
     required String employeeId,
   }) async {
     await initialize();
+    if (!isLocalOnly) {
+      try {
+        return _parseItems(
+          await ApiClient.get(
+            '/api/erp/leaves/employee/$employeeId',
+            erp: true,
+          ),
+        );
+      } on ApiException catch (e) {
+        _mapServerError(e);
+      }
+    }
     return _inMemoryLeaves
-        .where((l) => l.applicantId == employeeId && l.applicantRole == 'employee')
+        .where(
+          (l) => l.applicantId == employeeId && l.applicantRole == 'employee',
+        )
         .toList();
   }
 
@@ -752,13 +819,53 @@ class LeaveService {
   }) async {
     await initialize();
     final normalized = reviewerRole.toLowerCase().trim();
-    if (normalized != 'admin' && normalized != 'faculty' && normalized != 'teacher') {
+    if (normalized != 'admin' &&
+        normalized != 'faculty' &&
+        normalized != 'teacher') {
       throw const ErpAuthException('Unauthorized to review employee leaves.');
     }
 
     return _inMemoryLeaves
-        .where((l) => l.applicantRole == 'employee' && l.status == LeaveStatus.pending)
+        .where(
+          (l) =>
+              l.applicantRole == 'employee' && l.status == LeaveStatus.pending,
+        )
         .toList();
+  }
+
+  /// Employee/teacher leave requests this person is explicitly assigned to approve (admin: all).
+  /// A student, or a teacher who is not an assigned approver, gets an empty list or an auth error.
+  Future<List<LeaveApplication>> getEmployeeApprovalInbox({
+    required String approverId,
+    required String role,
+    bool pendingOnly = true,
+  }) async {
+    await initialize();
+    final r = role.toLowerCase().trim();
+    if (r != 'admin' && r != 'teacher' && r != 'faculty' && r != 'warden') {
+      throw const ErpAuthException(
+        'Access Denied: approver privileges required.',
+      );
+    }
+    if (!isLocalOnly) {
+      try {
+        final q = pendingOnly ? '' : '?status=all';
+        return _parseItems(
+          await ApiClient.get(
+            '/api/erp/leaves/approver/$approverId$q',
+            erp: true,
+          ),
+        );
+      } on ApiException catch (e) {
+        _mapServerError(e);
+      }
+    }
+    return _inMemoryLeaves.where((l) {
+      if (l.applicantRole != 'employee' || l.applicantId == approverId)
+        return false;
+      if (pendingOnly && l.status != LeaveStatus.pending) return false;
+      return r == 'admin' || l.assignedWardenId == approverId;
+    }).toList();
   }
 
   Future<List<EmployeeProfile>> getEmployeeDirectory() async {
@@ -770,7 +877,10 @@ class LeaveService {
     required String studentId,
     required String studentName,
   }) async {
-    return StudentAcademicProfile.defaultProfile(rollNo: studentId, name: studentName);
+    return StudentAcademicProfile.defaultProfile(
+      rollNo: studentId,
+      name: studentName,
+    );
   }
 
   // ==========================================

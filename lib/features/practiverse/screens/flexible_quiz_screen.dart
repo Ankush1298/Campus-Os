@@ -111,15 +111,15 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: const Color(0xFFE6F4F5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
+                border: Border.all(color: const Color(0xFFB3DFE4)),
               ),
               child: const Row(
                 children: [
                   Icon(
                     Icons.fact_check_rounded,
-                    color: Color(0xFF2563EB),
+                    color: Color(0xFF0E7C86),
                     size: 20,
                   ),
                   SizedBox(width: 8),
@@ -129,7 +129,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E40AF),
+                        color: Color(0xFF0B5F68),
                       ),
                     ),
                   ),
@@ -152,7 +152,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
                       ? null
                       : _submitQuiz,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: const Color(0xFF0E7C86),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -179,7 +179,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF64748B),
+                color: Color(0xFF56667F),
               ),
             ),
             const SizedBox(height: 6),
@@ -188,7 +188,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: Color(0xFF0B1B3A),
               ),
             ),
             const SizedBox(height: 12),
@@ -227,7 +227,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _selectedAnswers[index] == optIdx
-                                ? const Color(0xFF2563EB)
+                                ? const Color(0xFF0E7C86)
                                 : const Color(0xFFE2E8F0),
                           ),
                         ),
@@ -238,7 +238,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
                             text,
                             style: const TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF1E293B),
+                              color: Color(0xFF1B2B4B),
                             ),
                           ),
                         ),
@@ -261,7 +261,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
                   'Explanation: ${q.explanation}',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF334155),
+                    color: Color(0xFF2C3C58),
                   ),
                 ),
               ),
@@ -314,7 +314,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
             passed
                 ? 'Excellent retention! Your conceptual foundations are sound.'
                 : 'Good effort! Review the explanations above to reinforce misconceptions.',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF2C3C58)),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -322,7 +322,7 @@ class _FlexibleQuizScreenState extends State<FlexibleQuizScreen> {
             child: ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E3A8A),
+                backgroundColor: const Color(0xFF0B1B3A),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Finish Quiz & Return'),
