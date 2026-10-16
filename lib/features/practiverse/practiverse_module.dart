@@ -317,8 +317,10 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 6,
                     children: [
                       const Text(
                         'LEARN BY DOING',
@@ -449,12 +451,12 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: const Color(0xFFE6F4F5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.auto_stories_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF0E7C86),
                           size: 24,
                         ),
                       ),
@@ -475,7 +477,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                               'Enter chapter topics or notes to discover custom multi-subject practicals.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF64748B),
+                                color: Color(0xFF56667F),
                               ),
                             ),
                           ],
@@ -537,7 +539,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               title: "Physics: Ohm's Law & DC Circuits",
               subtitle: 'Interactive circuit with voltage & resistance sliders (I = V / R)',
               icon: Icons.electric_bolt_rounded,
-              color: const Color(0xFF2563EB),
+              color: const Color(0xFF0E7C86),
               onTap: () => _openSimulation('physics_ohms_law'),
             ),
             const SizedBox(height: 10),
@@ -546,7 +548,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
               subtitle:
                   'Interactive dataset exploring Mean vs. Median sensitivity',
               icon: Icons.functions_rounded,
-              color: const Color(0xFF7C3AED),
+              color: const Color(0xFF5A6AE8),
               onTap: () => _openSimulation('math_statistics_data'),
             ),
             const SizedBox(height: 10),
@@ -698,7 +700,7 @@ class _PractiverseHomeScreenState extends State<PractiverseHomeScreen> {
                       subtitle,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF56667F),
                       ),
                     ),
                   ],
@@ -1608,7 +1610,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.glassFillStrong,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
@@ -1685,13 +1687,13 @@ class _CodeSample extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
+        color: const Color(0xFF0B1B3A),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         value,
         style: const TextStyle(
-          color: Color(0xFFBFDBFE),
+          color: Color(0xFFB3DFE4),
           fontFamily: 'monospace',
           fontSize: 14,
         ),
@@ -1709,7 +1711,7 @@ class _DifficultyBadge extends StatelessWidget {
     final beginner = label == 'Beginner';
     return _MiniBadge(
       label: label.toUpperCase(),
-      color: beginner ? AppColors.accent : const Color(0xFF7C3AED),
+      color: beginner ? AppColors.accent : const Color(0xFF5A6AE8),
     );
   }
 }
@@ -1748,7 +1750,7 @@ class _EmptyChallenges extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.glassFillStrong,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),

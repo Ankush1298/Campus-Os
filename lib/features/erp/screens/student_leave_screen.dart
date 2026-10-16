@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../auth/models/user_session.dart';
@@ -16,7 +17,8 @@ class StudentLeaveScreen extends StatefulWidget {
   State<StudentLeaveScreen> createState() => _StudentLeaveScreenState();
 }
 
-class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTickerProviderStateMixin {
+class _StudentLeaveScreenState extends State<StudentLeaveScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Form Controllers
@@ -83,7 +85,9 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
     if (!_formKey.currentState!.validate()) return;
 
     if (_endDate.isBefore(_startDate)) {
-      setState(() => _formError = 'End date cannot be earlier than start date.');
+      setState(
+        () => _formError = 'End date cannot be earlier than start date.',
+      );
       return;
     }
 
@@ -111,7 +115,8 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
         setState(() {
           _isSubmitting = false;
           _reasonController.clear();
-          _successBanner = 'Leave application ${created.id} submitted successfully! Your assigned warden has been notified.';
+          _successBanner =
+              'Leave application ${created.id} submitted successfully! Your assigned warden has been notified.';
         });
         await _loadApplications();
         // Switch to history tab automatically to show the persisted request
@@ -132,9 +137,14 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel Leave Request?'),
-        content: Text('Are you sure you want to cancel your leave application #${leave.id}?'),
+        content: Text(
+          'Are you sure you want to cancel your leave application #${leave.id}?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
@@ -163,7 +173,10 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -200,22 +213,43 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
 
   List<LeaveApplication> get _filteredLeaves {
     if (_filterStatus == 'ALL') return _myLeaves;
-    return _myLeaves.where((l) => l.status.name.toUpperCase() == _filterStatus).toList();
+    return _myLeaves
+        .where((l) => l.status.name.toUpperCase() == _filterStatus)
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.session.role.toLowerCase() != 'student') {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'Access denied: student leave applications are for student accounts only.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
     return Column(
       children: [
         // Tab Selector Bar
         Container(
-          color: Colors.white,
+          color: AppColors.glassFillStrong,
           child: TabBar(
             controller: _tabController,
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
             tabs: [
               const Tab(
                 icon: Icon(Icons.add_circle_outline, size: 18),
@@ -233,10 +267,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
-              _buildApplyForm(),
-              _buildHistoryList(),
-            ],
+            children: [_buildApplyForm(), _buildHistoryList()],
           ),
         ),
       ],
@@ -264,12 +295,20 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _successBanner!,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF065F46)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF065F46),
+                        ),
                       ),
                     ),
                     IconButton(
@@ -293,12 +332,20 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _formError!,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF991B1B)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF991B1B),
+                        ),
                       ),
                     ),
                   ],
@@ -311,13 +358,17 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.glassFillStrong,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.verified_user, color: AppColors.primaryLight, size: 18),
+                  const Icon(
+                    Icons.verified_user,
+                    color: AppColors.primaryLight,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -325,11 +376,18 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                       children: [
                         Text(
                           'Applicant: ${widget.session.name} (${widget.session.id})',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const Text(
                           'Hostel Ganga (Block B) • Warden: Dr. Priya Sen (FAC-CS-08)',
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -341,13 +399,19 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
 
             // Leave Category Dropdown
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _selectedLeaveType,
               decoration: const InputDecoration(
                 labelText: 'Leave Category *',
                 prefixIcon: Icon(Icons.category_outlined, size: 20),
               ),
               items: _leaveCategories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map(
+                    (cat) => DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
                   .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedLeaveType = val);
@@ -362,7 +426,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.glassFillStrong,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
@@ -371,34 +435,55 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: const Color(0xFFE6F4F5),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.date_range_outlined, color: AppColors.primaryLight, size: 20),
+                      child: const Icon(
+                        Icons.date_range_outlined,
+                        color: AppColors.primaryLight,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Leave Duration (Tap to change dates)', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          const Text(
+                            'Leave Duration (Tap to change dates)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             '${_startDate.toIso8601String().substring(0, 10)}  to  ${_endDate.toIso8601String().substring(0, 10)}',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '$days ${days == 1 ? "day" : "days"}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -415,7 +500,9 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                 hintText: 'e.g. Home address or event venue',
                 prefixIcon: Icon(Icons.location_on_outlined, size: 20),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please specify destination address' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please specify destination address'
+                  : null,
             ),
             const SizedBox(height: 14),
 
@@ -428,7 +515,9 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                 hintText: '+91 98765 00000',
                 prefixIcon: Icon(Icons.phone_outlined, size: 20),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter emergency contact number' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter emergency contact number'
+                  : null,
             ),
             const SizedBox(height: 14),
 
@@ -442,8 +531,10 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                 alignLabelWithHint: true,
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Reason cannot be empty';
-                if (v.trim().length < 10) return 'Reason must be at least 10 characters';
+                if (v == null || v.trim().isEmpty)
+                  return 'Reason cannot be empty';
+                if (v.trim().length < 10)
+                  return 'Reason must be at least 10 characters';
                 return null;
               },
             ),
@@ -456,7 +547,10 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
                   : const Text('Submit Official Leave Application'),
             ),
@@ -479,23 +573,25 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
-            children: ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map((st) {
-              final isSel = _filterStatus == st;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(st),
-                  selected: isSel,
-                  onSelected: (_) => setState(() => _filterStatus = st),
-                  selectedColor: AppColors.primary,
-                  labelStyle: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isSel ? Colors.white : AppColors.textSecondary,
-                  ),
-                ),
-              );
-            }).toList(),
+            children: ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']
+                .map((st) {
+                  final isSel = _filterStatus == st;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(st),
+                      selected: isSel,
+                      onSelected: (_) => setState(() => _filterStatus = st),
+                      selectedColor: AppColors.primary,
+                      labelStyle: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isSel ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                  );
+                })
+                .toList(),
           ),
         ),
 
@@ -510,27 +606,41 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> with SingleTick
                     padding: const EdgeInsets.all(32),
                     children: [
                       const SizedBox(height: 40),
-                      const Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.inbox_outlined,
+                        size: 48,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(height: 12),
                       Center(
                         child: Text(
                           _filterStatus == 'ALL'
                               ? 'No leave applications filed yet.'
                               : 'No $_filterStatus applications found.',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       const Center(
                         child: Text(
                           'Switch to "Apply for Leave" tab to submit a new request.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                     ],
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: _filteredLeaves.length,
                     itemBuilder: (ctx, idx) {
                       final leave = _filteredLeaves[idx];

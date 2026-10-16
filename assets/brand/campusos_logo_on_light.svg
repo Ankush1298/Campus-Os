@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="1600" height="400" role="img" aria-label="CampusOS">
+  <title>CampusOS</title>
+
+  <g><defs><linearGradient id="a" x1="0" y1="15" x2="0" y2="90" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0B1B3A"/><stop offset="1" stop-color="#16406E"/></linearGradient></defs>
+  <path d="M40 86H19V50A31 31 0 0 1 81 50V86H60" fill="none" stroke="url(#a)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 90Q50 77 36 71L60 58L47 37" fill="none" stroke="#14B8C4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="36" cy="71" r="5.6" fill="#14B8C4" stroke="#FFFFFF" stroke-width="2.2"/>
+  <circle cx="60" cy="58" r="6.6" fill="#8B9CFF" stroke="#FFFFFF" stroke-width="2.2"/>
+  <circle cx="47" cy="37" r="5.6" fill="#14B8C4" stroke="#FFFFFF" stroke-width="2.2"/></g>
+  <text x="112" y="66" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="-1.5" fill="#0B1B3A">Campus<tspan fill="#0E7C86">OS</tspan></text>
+</svg>

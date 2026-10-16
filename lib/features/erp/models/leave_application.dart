@@ -28,7 +28,7 @@ enum LeaveStatus {
       case LeaveStatus.rejected:
         return const Color(0xFFEF4444); // Red / Error
       case LeaveStatus.cancelled:
-        return const Color(0xFF64748B); // Slate / Muted
+        return const Color(0xFF56667F); // Slate / Muted
     }
   }
 
@@ -85,7 +85,9 @@ class LeaveAuditEntry {
       actorRole: json['actorRole'] as String? ?? 'system',
       action: json['action'] as String? ?? 'ACTION',
       remarks: json['remarks'] as String? ?? '',
-      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
+      timestamp:
+          DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -109,7 +111,8 @@ class LeaveApplication {
   final String department;
   final String? hostel; // e.g. "Hostel Ganga, Room 204"
   final String? assignedWardenId; // e.g. "WARDEN01" or "FAC-CS-08"
-  final String leaveType; // e.g. "Hostel Outing", "Medical Leave", "Casual Leave"
+  final String
+  leaveType; // e.g. "Hostel Outing", "Medical Leave", "Casual Leave"
   final DateTime startDate;
   final DateTime endDate;
   final String reason;
@@ -213,17 +216,24 @@ class LeaveApplication {
       hostel: json['hostel'] as String?,
       assignedWardenId: json['assignedWardenId'] as String?,
       leaveType: json['leaveType'] as String? ?? 'General Leave',
-      startDate: DateTime.tryParse(json['startDate'] as String? ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['endDate'] as String? ?? '') ?? DateTime.now(),
+      startDate:
+          DateTime.tryParse(json['startDate'] as String? ?? '') ??
+          DateTime.now(),
+      endDate:
+          DateTime.tryParse(json['endDate'] as String? ?? '') ?? DateTime.now(),
       reason: json['reason'] as String? ?? '',
       destinationAddress: json['destinationAddress'] as String?,
       emergencyContact: json['emergencyContact'] as String?,
       status: LeaveStatus.fromString(json['status'] as String? ?? 'pending'),
-      appliedAt: DateTime.tryParse(json['appliedAt'] as String? ?? '') ?? DateTime.now(),
+      appliedAt:
+          DateTime.tryParse(json['appliedAt'] as String? ?? '') ??
+          DateTime.now(),
       decisionRemarks: json['decisionRemarks'] as String?,
       decidedBy: json['decidedBy'] as String?,
       decidedById: json['decidedById'] as String?,
-      decidedAt: json['decidedAt'] != null ? DateTime.tryParse(json['decidedAt'] as String) : null,
+      decidedAt: json['decidedAt'] != null
+          ? DateTime.tryParse(json['decidedAt'] as String)
+          : null,
       auditTrail: rawAudit
           .map((e) => LeaveAuditEntry.fromJson(e as Map<String, dynamic>))
           .toList(),

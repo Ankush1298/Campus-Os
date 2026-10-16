@@ -1,0 +1,27 @@
+# Render Blueprint for the CampusOS ERP backend (server/server.py).
+# Persistent disks require a paid instance type on Render (starter or higher).
+services:
+  - type: web
+    name: campusos-erp
+    runtime: python
+    plan: starter
+    buildCommand: "echo 'no dependencies: Python standard library only'"
+    startCommand: python3 server/server.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      - key: CAMPUSOS_ENV
+        value: production
+      - key: CAMPUSOS_SECRET_KEY
+        generateValue: true        # Render generates a strong value once; it stays stable across deploys
+      - key: CAMPUSOS_DB_PATH
+        value: /var/data/campusos.db
+      - key: CAMPUSOS_DEMO_PASSWORD
+        sync: false                # you enter this in the dashboard; never commit it
+      - key: CAMPUSOS_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: campusos-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../models/leave_application.dart';
 
@@ -19,7 +20,20 @@ class LeaveCard extends StatelessWidget {
   });
 
   String _formatDate(DateTime dt) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}, ${dt.year}';
   }
 
@@ -28,7 +42,7 @@ class LeaveCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.glassFillStrong,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: leave.isPending ? const Color(0xFFFDE68A) : AppColors.border,
@@ -54,46 +68,55 @@ class LeaveCard extends StatelessWidget {
               children: [
                 // Top Header: Type & Status
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: leave.status.backgroundColor,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            _getIconForType(leave.leaveType),
-                            size: 18,
-                            color: leave.status.color,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              leave.leaveType,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: leave.status.backgroundColor,
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            Text(
-                              'ID: ${leave.id}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontFamily: 'monospace',
-                                color: AppColors.textMuted,
-                              ),
+                            child: Icon(
+                              _getIconForType(leave.leaveType),
+                              size: 18,
+                              color: leave.status.color,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  leave.leaveType,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'ID: ${leave.id}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     _buildStatusPill(leave.status),
                   ],
                 ),
@@ -102,26 +125,42 @@ class LeaveCard extends StatelessWidget {
                 // If Warden view, display student identity
                 if (isWardenView) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: Row(
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Icon(Icons.person_outline, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${leave.applicantName} (${leave.applicantId})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.person_outline,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '${leave.applicantName} (${leave.applicantId})',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        if (leave.hostel != null) ...[
-                          const Spacer(),
+                        if (leave.hostel != null)
                           Text(
                             leave.hostel!,
                             style: const TextStyle(
@@ -129,7 +168,6 @@ class LeaveCard extends StatelessWidget {
                               color: AppColors.textSecondary,
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ),
@@ -137,10 +175,16 @@ class LeaveCard extends StatelessWidget {
                 ],
 
                 // Dates & Duration
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
                     Text(
                       '${_formatDate(leave.startDate)} → ${_formatDate(leave.endDate)}',
                       style: const TextStyle(
@@ -149,11 +193,13 @@ class LeaveCard extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: const Color(0xFFE6F4F5),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -161,7 +207,7 @@ class LeaveCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primaryLight,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -182,7 +228,8 @@ class LeaveCard extends StatelessWidget {
                 ),
 
                 // Decision remarks if available
-                if (leave.decisionRemarks != null && leave.decisionRemarks!.isNotEmpty) ...[
+                if (leave.decisionRemarks != null &&
+                    leave.decisionRemarks!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
@@ -204,9 +251,13 @@ class LeaveCard extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              leave.isApproved ? Icons.verified_user_outlined : Icons.info_outline,
+                              leave.isApproved
+                                  ? Icons.verified_user_outlined
+                                  : Icons.info_outline,
                               size: 14,
-                              color: leave.isApproved ? AppColors.success : AppColors.error,
+                              color: leave.isApproved
+                                  ? AppColors.success
+                                  : AppColors.error,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -267,13 +318,19 @@ class LeaveCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ] else if (!isWardenView && leave.isPending && onCancel != null) ...[
+                ] else if (!isWardenView &&
+                    leave.isPending &&
+                    onCancel != null) ...[
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: onCancel,
-                      icon: const Icon(Icons.cancel_outlined, size: 15, color: AppColors.error),
+                      icon: const Icon(
+                        Icons.cancel_outlined,
+                        size: 15,
+                        color: AppColors.error,
+                      ),
                       label: const Text(
                         'Cancel Request',
                         style: TextStyle(fontSize: 12, color: AppColors.error),

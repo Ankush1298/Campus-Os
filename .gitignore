@@ -50,3 +50,8 @@ app.*.map.json
 # Python cache
 __pycache__/
 *.pyc
+
+# CampusOS local server database
+server/*.db
+server/*.db-wal
+server/*.db-shm

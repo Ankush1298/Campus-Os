@@ -7,7 +7,8 @@ class EmployeeProfile {
   final String phone;
   final String status; // 'Active', 'On Leave'
   final String? reportingManager;
-  final Map<String, int> leaveBalance; // e.g. {'Casual': 12, 'Sick': 8, 'Earned': 15}
+  final Map<String, int>
+  leaveBalance; // e.g. {'Casual': 12, 'Sick': 8, 'Earned': 15}
 
   const EmployeeProfile({
     required this.id,

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
+import '../theme/app_theme.dart';
+import 'glass.dart';
+
+/// Role / status badge. Kept as the single entry point older screens use; now rendered by [StatusChip].
 class StatusBadge extends StatelessWidget {
   final String text;
-  final Color backgroundColor;
-  final Color textColor;
+  final StatusTone tone;
   final IconData? icon;
 
   const StatusBadge({
     super.key,
     required this.text,
-    required this.backgroundColor,
-    required this.textColor,
+    this.tone = StatusTone.neutral,
     this.icon,
   });
 
@@ -20,24 +21,21 @@ class StatusBadge extends StatelessWidget {
       case 'admin':
         return const StatusBadge(
           text: 'ADMIN',
-          backgroundColor: Color(0xFFFEE2E2),
-          textColor: Color(0xFFDC2626),
+          tone: StatusTone.error,
           icon: Icons.admin_panel_settings_outlined,
         );
       case 'teacher':
       case 'faculty':
         return const StatusBadge(
           text: 'FACULTY',
-          backgroundColor: Color(0xFFE0E7FF),
-          textColor: Color(0xFF4338CA),
+          tone: StatusTone.info,
           icon: Icons.school_outlined,
         );
       case 'student':
       default:
         return const StatusBadge(
           text: 'STUDENT',
-          backgroundColor: Color(0xFFD1FAE5),
-          textColor: Color(0xFF047857),
+          tone: StatusTone.brand,
           icon: Icons.badge_outlined,
         );
     }
@@ -48,67 +46,53 @@ class StatusBadge extends StatelessWidget {
       case 'active':
       case 'present':
       case 'ready':
-        return const StatusBadge(
-          text: 'ACTIVE',
-          backgroundColor: Color(0xFFD1FAE5),
-          textColor: Color(0xFF047857),
+      case 'approved':
+      case 'synchronized':
+        return StatusBadge(
+          text: status.toLowerCase() == 'present' ? 'PRESENT' : 'ACTIVE',
+          tone: StatusTone.success,
           icon: Icons.check_circle_outline,
         );
       case 'pending':
       case 'in-progress':
+      case 'pending end':
         return const StatusBadge(
           text: 'IN PROGRESS',
-          backgroundColor: Color(0xFFFEF3C7),
-          textColor: Color(0xFFD97706),
+          tone: StatusTone.warning,
           icon: Icons.timelapse,
         );
       case 'absent':
+        return const StatusBadge(
+          text: 'ABSENT',
+          tone: StatusTone.error,
+          icon: Icons.cancel_outlined,
+        );
       case 'error':
         return const StatusBadge(
           text: 'ERROR',
-          backgroundColor: Color(0xFFFEE2E2),
-          textColor: Color(0xFFDC2626),
+          tone: StatusTone.error,
           icon: Icons.error_outline,
+        );
+      case 'scheduled':
+        return const StatusBadge(
+          text: 'SCHEDULED',
+          tone: StatusTone.neutral,
+          icon: Icons.schedule_rounded,
         );
       default:
         return StatusBadge(
           text: status.toUpperCase(),
-          backgroundColor: const Color(0xFFF1F5F9),
-          textColor: const Color(0xFF475569),
+          tone: StatusTone.neutral,
         );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: textColor),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      StatusChip(label: text, tone: tone, icon: icon);
 }
 
+/// Navigation tile for a module / destination.
 class ModuleCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -127,7 +111,7 @@ class ModuleCard extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     this.iconColor = AppColors.primary,
-    this.iconBgColor = const Color(0xFFEFF6FF),
+    this.iconBgColor = const Color(0xFFE6F4F5),
     this.trailing,
     this.badgeText,
     this.badgeColor,
@@ -137,97 +121,57 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return GlassCard(
+      onTap: onTap,
+      semanticLabel: '$title. $subtitle',
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (badgeText != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: (badgeColor ?? AppColors.primary).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              badgeText!,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: badgeColor ?? AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                    Text(title, style: AppText.heading),
+                    if (badgeText != null)
+                      StatusChip(
+                        label: badgeText!,
+                        tone: StatusTone.brand,
+                        dense: true,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              trailing ??
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: isReady ? AppColors.textMuted : AppColors.border,
-                  ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: AppText.meta,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          trailing ??
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: isReady ? AppColors.textMuted : AppColors.border,
+              ),
+        ],
       ),
     );
   }
@@ -241,24 +185,26 @@ class LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 3,
-          ),
-          if (message != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              message!,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(strokeWidth: 3),
             ),
+            if (message != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: AppText.bodySecondary,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -279,50 +225,37 @@ class ErrorStateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEE2E2),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline, size: 36, color: AppColors.error),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 34,
+                color: AppColors.error,
               ),
             ),
+            const SizedBox(height: 16),
+            Text(title, textAlign: TextAlign.center, style: AppText.title),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: AppText.bodySecondary,
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Try Again'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try again'),
               ),
             ],
           ],

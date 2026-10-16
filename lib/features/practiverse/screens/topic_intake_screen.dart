@@ -68,7 +68,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                  colors: [Color(0xFF0B1B3A), Color(0xFF0E7C86)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -115,7 +115,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF475569),
+                color: Color(0xFF46566F),
               ),
             ),
             const SizedBox(height: 8),
@@ -176,7 +176,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
                         icon: const Icon(Icons.psychology_rounded),
                         label: const Text('Analyze & Discover Practicals'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E3A8A),
+                          backgroundColor: const Color(0xFF0B1B3A),
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -234,7 +234,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
                         'Matched Academic Discipline',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: Color(0xFF56667F),
                         ),
                       ),
                     ],
@@ -248,7 +248,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
-                color: Color(0xFF334155),
+                color: Color(0xFF2C3C58),
               ),
             ),
             const SizedBox(height: 6),
@@ -275,7 +275,7 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
                 result.pedagogicalGuidance,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF475569),
+                  color: Color(0xFF46566F),
                   height: 1.4,
                 ),
               ),
@@ -314,13 +314,13 @@ class _TopicIntakeScreenState extends State<TopicIntakeScreen> {
                         '${activity.formulaNotation} • ${activity.difficulty}',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: Color(0xFF56667F),
                         ),
                       ),
                       trailing: const Icon(
                         Icons.arrow_forward_ios_rounded,
                         size: 14,
-                        color: Color(0xFF2563EB),
+                        color: Color(0xFF0E7C86),
                       ),
                       onTap: () {
                         Navigator.of(context).push(

@@ -161,7 +161,7 @@ class _DilutionSimulationState extends State<DilutionSimulation> {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF334155),
+              color: Color(0xFF2C3C58),
             ),
           ),
         ),
@@ -186,7 +186,7 @@ class _DilutionSimulationState extends State<DilutionSimulation> {
                     ),
                     const Text(
                       'Moles = C₁ × V₁',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF56667F)),
                     ),
                   ],
                 ),
@@ -278,7 +278,7 @@ class _DilutionSimulationState extends State<DilutionSimulation> {
                   'Given C₁ = ${_c1.toStringAsFixed(1)} M, V₁ = ${_v1.toStringAsFixed(0)} mL, and total V₂ = ${_totalVolume.toStringAsFixed(0)} mL, calculate final concentration C₂:',
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF475569),
+                    color: Color(0xFF46566F),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -371,7 +371,7 @@ class _DilutionSimulationState extends State<DilutionSimulation> {
                       '• $step',
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF334155),
+                        color: Color(0xFF2C3C58),
                       ),
                     ),
                   ),

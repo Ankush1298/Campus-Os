@@ -1,8 +1,42 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../models/practical_activity.dart';
 import '../../models/activity_evaluation.dart';
 import '../../widgets/circuit_diagram_painter.dart';
+import '../../widgets/line_chart.dart';
+
+/// Pure model behind the Ohm's-law practical (also what the unit tests check).
+class OhmsLawModel {
+  static const double vMax = 30;
+  static const double rMax = 50;
+
+  /// I = V / R, or null when the inputs make no physical sense (R <= 0 would be a short circuit: undefined).
+  static double? current(double v, double r) =>
+      (v.isFinite && r.isFinite && r > 0) ? v / r : null;
+
+  /// Points of the V-I line at a fixed resistance: (voltage, current).
+  static List<Offset> voltageCurrent(double r, {int steps = 6}) => [
+    for (var i = 0; i <= steps; i++)
+      Offset(vMax * i / steps, current(vMax * i / steps, r) ?? 0),
+  ];
+
+  /// Points of the I-R curve at a fixed voltage: (resistance, current).
+  static List<Offset> currentResistance(double v) => [
+    for (var r = 1; r <= rMax; r++)
+      Offset(r.toDouble(), current(v, r.toDouble()) ?? 0),
+  ];
+
+  static double niceCeil(double v) {
+    if (v <= 0) return 1;
+    final p = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
+    for (final m in [1.0, 2.0, 2.5, 5.0, 10.0]) {
+      if (m * p >= v) return m * p;
+    }
+    return 10 * p;
+  }
+}
 
 class OhmsLawSimulation extends StatefulWidget {
   final PracticalActivity activity;
@@ -34,17 +68,18 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
   ActivityEvaluationResult? _lastEvaluation;
   bool _evaluated = false;
 
-  double get _theoreticalCurrent => _voltage / _resistance;
+  double get _theoreticalCurrent =>
+      OhmsLawModel.current(_voltage, _resistance) ?? 0;
 
   void _evaluatePrediction() {
     final text = _predictionController.text.trim();
     final double? predicted = double.tryParse(text);
 
-    if (predicted == null) {
+    if (predicted == null || !predicted.isFinite || predicted < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Please enter a valid numeric value for Current (Amperes).',
+            'Please enter a valid, non-negative number for the current (in amperes).',
           ),
         ),
       );
@@ -110,13 +145,13 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: const Color(0xFFE6F4F5),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
+            border: Border.all(color: const Color(0xFFB3DFE4)),
           ),
           child: const Row(
             children: [
-              Icon(Icons.hub_rounded, color: Color(0xFF2563EB), size: 18),
+              Icon(Icons.hub_rounded, color: Color(0xFF0E7C86), size: 18),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -124,7 +159,7 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E40AF),
+                    color: Color(0xFF0B5F68),
                   ),
                 ),
               ),
@@ -147,7 +182,87 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
               voltage: _voltage,
               resistance: _resistance,
               current: _theoreticalCurrent,
-              accentColor: const Color(0xFF2563EB),
+              accentColor: const Color(0xFF0E7C86),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Graphs: real computed data (updates with every slider move)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LabeledLineChart(
+                  key: const Key('ohm-graph-vi'),
+                  title:
+                      'Graph 1: Current vs Voltage (R = ${_resistance.toStringAsFixed(1)} Ω)',
+                  xLabel: 'Voltage V (volts)',
+                  yLabel: 'Current I (amperes)',
+                  xMax: OhmsLawModel.vMax,
+                  yMax: OhmsLawModel.niceCeil(OhmsLawModel.vMax / _resistance),
+                  series: [
+                    ChartSeries(
+                      label:
+                          'I = V / R at R = ${_resistance.toStringAsFixed(1)} Ω',
+                      points: OhmsLawModel.voltageCurrent(_resistance),
+                      color: const Color(0xFF0E7C86),
+                      showPoints: true,
+                    ),
+                    ChartSeries(
+                      label: 'Resistance doubled (2R)',
+                      points: OhmsLawModel.voltageCurrent(_resistance * 2),
+                      color: const Color(0xFF94A3B8),
+                      dashed: true,
+                    ),
+                  ],
+                  marker: Offset(_voltage, _theoreticalCurrent),
+                  caption:
+                      'Each dot is a voltage and the current it drives through this resistor. The line is straight because current is proportional to voltage; its steepness is 1/R. '
+                      'The dashed line shows the same circuit with double the resistance: the same voltage drives half the current.',
+                ),
+                const Divider(height: 28),
+                LabeledLineChart(
+                  key: const Key('ohm-graph-ir'),
+                  title:
+                      'Graph 2: Current vs Resistance (V = ${_voltage.toStringAsFixed(1)} V)',
+                  xLabel: 'Resistance R (ohms)',
+                  yLabel: 'Current I (amperes)',
+                  xMax: OhmsLawModel.rMax,
+                  yMax: OhmsLawModel.niceCeil(_voltage),
+                  series: [
+                    ChartSeries(
+                      label:
+                          'I = V / R at V = ${_voltage.toStringAsFixed(1)} V',
+                      points: OhmsLawModel.currentResistance(_voltage),
+                      color: const Color(0xFF16A34A),
+                    ),
+                  ],
+                  marker: Offset(_resistance, _theoreticalCurrent),
+                  caption: 'At a fixed voltage, more resistance means less current: the curve falls as R grows (inverse proportionality).',
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  key: const Key('ohm-formula'),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _evaluated
+                        ? 'Formula: I = V / R = ${_voltage.toStringAsFixed(1)} V / ${_resistance.toStringAsFixed(1)} Ω = ${_theoreticalCurrent.toStringAsFixed(3)} A'
+                        : 'Formula: I = V / R   (V = ${_voltage.toStringAsFixed(1)} V, R = ${_resistance.toStringAsFixed(1)} Ω, I = ? A. The calculated value is shown after you verify your answer.)',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2C3C58),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -203,7 +318,7 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
                     ),
                     const Text(
                       'Non-zero (R ≥ 1Ω)',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF56667F)),
                     ),
                   ],
                 ),
@@ -253,7 +368,7 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
                   'Given V = ${_voltage.toStringAsFixed(1)} V and R = ${_resistance.toStringAsFixed(1)} Ω, predict the resulting current (I) in Amperes:',
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF475569),
+                    color: Color(0xFF46566F),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -277,7 +392,7 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
                       key: const Key('practiverse-check'),
                       onPressed: _evaluatePrediction,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
+                        backgroundColor: const Color(0xFF0E7C86),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -346,7 +461,7 @@ class _OhmsLawSimulationState extends State<OhmsLawSimulation> {
                       '• $step',
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF334155),
+                        color: Color(0xFF2C3C58),
                       ),
                     ),
                   ),

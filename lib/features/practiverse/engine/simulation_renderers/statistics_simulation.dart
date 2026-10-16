@@ -139,7 +139,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
             children: [
               Icon(
                 Icons.query_stats_rounded,
-                color: Color(0xFF7C3AED),
+                color: Color(0xFF5A6AE8),
                 size: 18,
               ),
               SizedBox(width: 8),
@@ -166,7 +166,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                 title: 'Arithmetic Mean',
                 value: _mean.toStringAsFixed(2),
                 subtitle: 'Sum / Count',
-                color: const Color(0xFF2563EB),
+                color: const Color(0xFF0E7C86),
               ),
             ),
             const SizedBox(width: 10),
@@ -175,7 +175,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                 title: 'Positional Median',
                 value: _median.toStringAsFixed(2),
                 subtitle: 'Middle Rank',
-                color: const Color(0xFF7C3AED),
+                color: const Color(0xFF5A6AE8),
               ),
             ),
           ],
@@ -221,7 +221,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                         style: TextStyle(
                           color: isExtreme
                               ? Colors.white
-                              : const Color(0xFF0F172A),
+                              : const Color(0xFF0B1B3A),
                           fontWeight: isExtreme
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -246,7 +246,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                   'Sorted sequence: [${sorted.map((e) => e.toStringAsFixed(0)).join(', ')}]',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF64748B),
+                    color: Color(0xFF56667F),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -316,7 +316,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                 const SizedBox(height: 4),
                 const Text(
                   'Inspect the active sorted dataset. Calculate the exact positional median:',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                  style: TextStyle(fontSize: 13, color: Color(0xFF46566F)),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -338,7 +338,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                       key: const Key('practiverse-check'),
                       onPressed: _evaluateMedianPrediction,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
+                        backgroundColor: const Color(0xFF5A6AE8),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -407,7 +407,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
                       '• $step',
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF334155),
+                        color: Color(0xFF2C3C58),
                       ),
                     ),
                   ),
@@ -455,7 +455,7 @@ class _StatisticsSimulationState extends State<StatisticsSimulation> {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+            style: const TextStyle(fontSize: 10, color: Color(0xFF56667F)),
           ),
         ],
       ),

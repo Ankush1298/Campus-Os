@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/branding/campus_logo.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../models/user_session.dart';
 import '../services/auth_service.dart';
 
@@ -14,8 +17,11 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _idController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocus = FocusNode();
   late final TextEditingController _urlController;
   bool _isLoading = false;
+  bool _showPassword = false;
+  bool _submitted = false;
   String? _errorMessage;
   bool _showServerConfig = false;
 
@@ -29,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _idController.dispose();
     _passwordController.dispose();
+    _passwordFocus.dispose();
     _urlController.dispose();
     super.dispose();
   }
@@ -38,12 +45,16 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (id.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Please enter both ID and password');
+      setState(() {
+        _submitted = true;
+        _errorMessage = 'Please enter both ID and password';
+      });
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _submitted = false;
       _errorMessage = null;
     });
 
@@ -71,281 +82,42 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.gutter,
+              vertical: AppSpacing.md,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // App Brand Logo & Title
-                  Center(
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - AppSpacing.md * 2,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.sm),
+                      const Center(
+                        child: CampusLogo(markSize: 64, stacked: true),
                       ),
-                      child: const Icon(
-                        Icons.hub_rounded,
-                        color: Colors.white,
-                        size: 44,
+                      const SizedBox(height: AppSpacing.sm + 2),
+                      const Text(
+                        'Attendance, leave, capture and practical learning, in one campus app.',
+                        textAlign: TextAlign.center,
+                        style: AppText.bodySecondary,
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _signInCard(),
+                      const SizedBox(height: AppSpacing.md),
+                      _demoCard(),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const Text(
-                    'CampusOS',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Unified Smart Campus Operating System',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Login Card Container
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text(
-                          'Sign In to Your Campus Portal',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // Error Banner
-                        if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEE2E2),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFFCA5A5)),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(
-                                      color: Color(0xFF991B1B),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
-
-                        // ID Input
-                        TextField(
-                          controller: _idController,
-                          decoration: const InputDecoration(
-                            labelText: 'Roll No / Faculty ID',
-                            hintText: 'e.g. 22CS1042 or FAC-CS-08',
-                            prefixIcon: Icon(Icons.badge_outlined, size: 20),
-                          ),
-                          textInputAction: TextInputAction.next,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // Password Input
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Password',
-                            hintText: 'Enter your account password',
-                            prefixIcon: Icon(Icons.lock_outline, size: 20),
-                          ),
-                          onSubmitted: (_) => _handleLogin(),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Login Button
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Log In'),
-                        ),
-
-                        // Server config expander
-                        const SizedBox(height: AppSpacing.sm),
-                        Align(
-                          alignment: Alignment.center,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() => _showServerConfig = !_showServerConfig);
-                            },
-                            icon: Icon(
-                              _showServerConfig ? Icons.expand_less : Icons.settings_outlined,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                            label: Text(
-                              _showServerConfig ? 'Hide Server Settings' : 'Configure Backend URL',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                          ),
-                        ),
-
-                        if (_showServerConfig) ...[
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _urlController,
-                            decoration: const InputDecoration(
-                              labelText: 'API Base URL',
-                              hintText: 'http://10.0.2.2:8000',
-                              helperText: 'Emulator: http://10.0.2.2:8000 • Device: host LAN IP',
-                              prefixIcon: Icon(Icons.dns_outlined, size: 18),
-                            ),
-                            style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                            onChanged: (val) => AuthService.instance.saveBackendUrl(val),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Quick Demo Mode Switcher
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.bolt, color: AppColors.warning, size: 18),
-                            SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Instant Demo Access',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _handleDemoLogin(UserSession.demoStudent()),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                  backgroundColor: Colors.white,
-                                ),
-                                child: const Text(
-                                  'Student',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _handleDemoLogin(UserSession.demoFaculty()),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                  backgroundColor: Colors.white,
-                                ),
-                                child: const Text(
-                                  'Faculty',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _handleDemoLogin(UserSession.demoAdmin()),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                  backgroundColor: Colors.white,
-                                ),
-                                child: const Text(
-                                  'Admin',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -353,4 +125,224 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  Widget _signInCard() {
+    return GlassCard(
+      blur: true,
+      tone: GlassTone.strong,
+      radius: AppRadius.xl,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Sign In to Your Campus Portal', style: AppText.title),
+            const SizedBox(height: 4),
+            const Text(
+              'Use the ID and password issued by your institution.',
+              style: AppText.meta,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (_errorMessage != null) ...[
+              Semantics(
+                liveRegion: true,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.30),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF9E1C27),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            TextField(
+              controller: _idController,
+              enabled: !_isLoading,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
+              autocorrect: false,
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
+              decoration: InputDecoration(
+                labelText: 'Roll No / Faculty ID',
+                prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                errorText: _submitted && _idController.text.trim().isEmpty
+                    ? 'Required'
+                    : null,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _passwordController,
+              focusNode: _passwordFocus,
+              enabled: !_isLoading,
+              obscureText: !_showPassword,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              onSubmitted: (_) => _handleLogin(),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                errorText: _submitted && _passwordController.text.isEmpty
+                    ? 'Required'
+                    : null,
+                suffixIcon: IconButton(
+                  tooltip: _showPassword ? 'Hide password' : 'Show password',
+                  icon: Icon(
+                    _showPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _handleLogin,
+              child: AnimatedSwitcher(
+                duration: AppMotion.of(context, AppMotion.fast),
+                child: _isLoading
+                    ? const SizedBox(
+                        key: ValueKey('busy'),
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Log In', key: ValueKey('idle')),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              child: TextButton.icon(
+                onPressed: () =>
+                    setState(() => _showServerConfig = !_showServerConfig),
+                icon: Icon(
+                  _showServerConfig
+                      ? Icons.expand_less_rounded
+                      : Icons.settings_outlined,
+                  size: 18,
+                ),
+                label: Text(
+                  _showServerConfig
+                      ? 'Hide Server Settings'
+                      : 'Configure Backend URL',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: AppMotion.of(context),
+              curve: AppMotion.curve,
+              child: _showServerConfig
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: TextField(
+                        controller: _urlController,
+                        keyboardType: TextInputType.url,
+                        autocorrect: false,
+                        decoration: const InputDecoration(
+                          labelText: 'API Base URL',
+                          hintText: 'https://your-attendance-server',
+                          helperText: 'Attendance server. Emulator: http://10.0.2.2:8000',
+                          helperMaxLines: 2,
+                          prefixIcon: Icon(Icons.dns_outlined, size: 18),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                        ),
+                        onChanged: (val) =>
+                            AuthService.instance.saveBackendUrl(val),
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _demoCard() {
+    return GlassCard(
+      tint: AppColors.accentLight,
+      tone: GlassTone.tinted,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.bolt_rounded, color: AppColors.warning, size: 18),
+              SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Instant Demo Access',
+                  style: AppText.heading,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Explore with sample data on this device. Nothing is sent to a server.',
+            textAlign: TextAlign.center,
+            style: AppText.meta,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _demoButton('Student', UserSession.demoStudent)),
+              const SizedBox(width: 8),
+              Expanded(child: _demoButton('Faculty', UserSession.demoFaculty)),
+              const SizedBox(width: 8),
+              Expanded(child: _demoButton('Admin', UserSession.demoAdmin)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _demoButton(String label, UserSession Function() make) =>
+      OutlinedButton(
+        onPressed: _isLoading ? null : () => _handleDemoLogin(make()),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+        ),
+        child: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+      );
 }

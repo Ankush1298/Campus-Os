@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../auth/models/user_session.dart';
@@ -17,7 +18,8 @@ class EmployeeLeaveScreen extends StatefulWidget {
   State<EmployeeLeaveScreen> createState() => _EmployeeLeaveScreenState();
 }
 
-class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTickerProviderStateMixin {
+class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   final _formKey = GlobalKey<FormState>();
@@ -33,13 +35,21 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
 
   List<LeaveApplication> _myLeaves = [];
   List<EmployeeProfile> _directory = [];
+  List<LeaveApplication> _approvals = [];
+  String? _approvalsError;
+  bool _approvalsPendingOnly = true;
 
-  final List<String> _types = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Duty Leave'];
+  final List<String> _types = [
+    'Casual Leave',
+    'Sick Leave',
+    'Earned Leave',
+    'Duty Leave',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadData();
   }
 
@@ -64,9 +74,167 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMsg = e.toString();
+        });
+      }
     }
+    await _loadApprovals();
+  }
+
+  Future<void> _loadApprovals() async {
+    try {
+      final list = await LeaveService.instance.getEmployeeApprovalInbox(
+        approverId: widget.session.id,
+        role: widget.session.role,
+        pendingOnly: _approvalsPendingOnly,
+      );
+      if (mounted) {
+        setState(() {
+          _approvals = list;
+          _approvalsError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _approvalsError = e.toString());
+      }
+    }
+  }
+
+  Future<void> _decide(LeaveApplication leave, bool approve) async {
+    final remarks = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(approve ? 'Approve leave' : 'Reject leave'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${leave.applicantName} (${leave.applicantId}), ${leave.leaveType}',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: remarks,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: approve
+                    ? 'Remarks (optional)'
+                    : 'Reason for rejection *',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (!approve && remarks.text.trim().isEmpty) return;
+              Navigator.pop(ctx, true);
+            },
+            child: Text(approve ? 'Approve' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await LeaveService.instance.decideLeave(
+        leaveId: leave.id,
+        approverId: widget.session.id,
+        approverName: widget.session.name,
+        approverRole: widget.session.role,
+        approve: approve,
+        remarks: remarks.text.trim().isEmpty ? null : remarks.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Leave ${approve ? 'approved' : 'rejected'}.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+    await _loadApprovals();
+  }
+
+  Widget _buildApprovalsTab() {
+    if (_approvalsError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            _approvalsError!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.error),
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadApprovals,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Only leave requests of employees assigned to you appear here.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              FilterChip(
+                label: Text(
+                  _approvalsPendingOnly ? 'Pending only' : 'All decisions',
+                ),
+                selected: _approvalsPendingOnly,
+                onSelected: (v) {
+                  setState(() => _approvalsPendingOnly = v);
+                  _loadApprovals();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_approvals.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  'No employee leave requests to review.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            )
+          else
+            for (final l in _approvals)
+              LeaveCard(
+                leave: l,
+                isWardenView: true,
+                onTap: () => LeaveDetailSheet.show(context, leave: l),
+                onDecide: l.isPending ? (approve) => _decide(l, approve) : null,
+              ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submitEmployeeLeave() async {
@@ -98,7 +266,8 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
         setState(() {
           _isSubmitting = false;
           _reasonController.clear();
-          _successMsg = 'Employee leave application ${app.id} submitted for institutional review.';
+          _successMsg =
+              'Employee leave application ${app.id} submitted for institutional review.';
         });
         await _loadData();
         _tabController.animateTo(1);
@@ -115,12 +284,34 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    // Defence in depth: the server refuses these routes for students too.
+    if (widget.session.role.toLowerCase() == 'student') {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'Access denied: employee ERP is for staff accounts only.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
     return Column(
       children: [
         // Employee Profile & Leave Quota Card
         Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           padding: const EdgeInsets.all(16),
-          color: Colors.white,
+          decoration: BoxDecoration(
+            color: AppColors.glassFillStrong,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.glassEdge),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -129,10 +320,14 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: const Color(0xFFE6F4F5),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.badge_rounded, color: AppColors.primary, size: 24),
+                    child: const Icon(
+                      Icons.badge_rounded,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -149,7 +344,10 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                         ),
                         Text(
                           'Staff ID: ${widget.session.id} • Dept of Computer Science',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -162,7 +360,7 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
               // Quota Badges
               Row(
                 children: [
-                  _buildQuotaTile('Casual', '10', const Color(0xFF3B82F6)),
+                  _buildQuotaTile('Casual', '10', const Color(0xFF22A6B3)),
                   const SizedBox(width: 8),
                   _buildQuotaTile('Sick', '8', const Color(0xFF10B981)),
                   const SizedBox(width: 8),
@@ -177,17 +375,21 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
 
         // Tabs
         Container(
-          color: Colors.white,
+          color: AppColors.glassFillStrong,
           child: TabBar(
             controller: _tabController,
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
             tabs: const [
               Tab(text: 'Apply Leave'),
               Tab(text: 'My Leave History'),
               Tab(text: 'Staff Directory'),
+              Tab(text: 'Approvals'),
             ],
           ),
         ),
@@ -200,6 +402,7 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
               _buildApplyTab(),
               _buildHistoryTab(),
               _buildDirectoryTab(),
+              _buildApprovalsTab(),
             ],
           ),
         ),
@@ -228,7 +431,11 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -251,7 +458,13 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                   color: const Color(0xFFD1FAE5),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(_successMsg!, style: const TextStyle(fontSize: 12, color: Color(0xFF065F46))),
+                child: Text(
+                  _successMsg!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF065F46),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
             ],
@@ -262,7 +475,13 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                   color: const Color(0xFFFEE2E2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(_errorMsg!, style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B))),
+                child: Text(
+                  _errorMsg!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF991B1B),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
             ],
@@ -273,7 +492,9 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                 labelText: 'Leave Category *',
                 prefixIcon: Icon(Icons.work_outline),
               ),
-              items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+              items: _types
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _leaveType = val);
               },
@@ -289,7 +510,9 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                       final d = await showDatePicker(
                         context: context,
                         initialDate: _startDate,
-                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 1),
+                        ),
                         lastDate: DateTime.now().add(const Duration(days: 120)),
                       );
                       if (d != null) setState(() => _startDate = d);
@@ -297,16 +520,25 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.glassFillStrong,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Start Date', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          const Text(
+                            'Start Date',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 2),
-                          Text(_startDate.toIso8601String().substring(0, 10), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                            _startDate.toIso8601String().substring(0, 10),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ],
                       ),
                     ),
@@ -327,16 +559,25 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.glassFillStrong,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('End Date', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          const Text(
+                            'End Date',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 2),
-                          Text(_endDate.toIso8601String().substring(0, 10), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                            _endDate.toIso8601String().substring(0, 10),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ],
                       ),
                     ),
@@ -354,14 +595,23 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                 hintText: 'Enter reason and name of colleague handling lecture/lab duties...',
                 alignLabelWithHint: true,
               ),
-              validator: (v) => (v == null || v.trim().length < 5) ? 'Please enter a valid reason' : null,
+              validator: (v) => (v == null || v.trim().length < 5)
+                  ? 'Please enter a valid reason'
+                  : null,
             ),
             const SizedBox(height: 20),
 
             ElevatedButton(
               onPressed: _isSubmitting ? null : _submitEmployeeLeave,
               child: _isSubmitting
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text('Submit for Department Approval'),
             ),
           ],
@@ -380,11 +630,19 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.event_available_outlined, size: 48, color: AppColors.textMuted),
+              Icon(
+                Icons.event_available_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               SizedBox(height: 12),
               Text(
                 'No employee leave records yet.',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -416,7 +674,7 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.glassFillStrong,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.border),
           ),
@@ -427,7 +685,10 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(
                   emp.name.isNotEmpty ? emp.name[0] : 'E',
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -437,16 +698,27 @@ class _EmployeeLeaveScreenState extends State<EmployeeLeaveScreen> with SingleTi
                   children: [
                     Text(
                       emp.name,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     Text(
                       '${emp.designation} • ${emp.department}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${emp.email} • ${emp.phone}',
-                      style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: AppColors.primaryLight),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        color: AppColors.primaryLight,
+                      ),
                     ),
                   ],
                 ),

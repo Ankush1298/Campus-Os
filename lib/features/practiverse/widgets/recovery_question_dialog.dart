@@ -72,7 +72,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                           'Answer this concept check to earn +1 Life back!',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF64748B),
+                            color: Color(0xFF56667F),
                           ),
                         ),
                       ],
@@ -86,7 +86,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F172A),
+                  color: Color(0xFF0B1B3A),
                 ),
               ),
               const SizedBox(height: 12),
@@ -124,7 +124,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: _selectedOption == index
-                                  ? const Color(0xFF2563EB)
+                                  ? const Color(0xFF0E7C86)
                                   : const Color(0xFFE2E8F0),
                             ),
                           ),
@@ -135,7 +135,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                               optText,
                               style: const TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF1E293B),
+                                color: Color(0xFF1B2B4B),
                               ),
                             ),
                           ),
@@ -194,7 +194,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                         widget.question.explanation,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF334155),
+                          color: Color(0xFF2C3C58),
                         ),
                       ),
                     ],
@@ -215,7 +215,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                     },
                     child: const Text(
                       'Reset Session (3 Lives)',
-                      style: TextStyle(color: Color(0xFF64748B)),
+                      style: TextStyle(color: Color(0xFF56667F)),
                     ),
                   ),
                   if (!_submitted)
@@ -223,7 +223,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                       key: const Key('practiverse-recovery-submit-btn'),
                       onPressed: _selectedOption == null ? null : _submitAnswer,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
+                        backgroundColor: const Color(0xFF0E7C86),
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('Submit & Recover'),
@@ -240,7 +240,7 @@ class _RecoveryQuestionDialogState extends State<RecoveryQuestionDialog> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _wasCorrect
                             ? const Color(0xFF16A34A)
-                            : const Color(0xFF475569),
+                            : const Color(0xFF46566F),
                         foregroundColor: Colors.white,
                       ),
                       child: Text(

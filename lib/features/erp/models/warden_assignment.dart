@@ -22,12 +22,14 @@ class WardenAssignment {
     String? hostel,
     String? department,
   }) {
-    if (assignedStudentIds.contains('*') || assignedStudentIds.contains(studentId)) {
+    if (assignedStudentIds.contains('*') ||
+        assignedStudentIds.contains(studentId)) {
       return true;
     }
     if (hostel != null) {
       for (final h in assignedHostels) {
-        if (h == '*' || hostel.toLowerCase().contains(h.toLowerCase())) return true;
+        if (h == '*' || hostel.toLowerCase().contains(h.toLowerCase()))
+          return true;
       }
     }
     if (department != null) {
@@ -48,9 +50,15 @@ class WardenAssignment {
       wardenName: json['wardenName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
-      assignedHostels: List<String>.from(json['assignedHostels'] as List? ?? []),
-      assignedDepartments: List<String>.from(json['assignedDepartments'] as List? ?? []),
-      assignedStudentIds: List<String>.from(json['assignedStudentIds'] as List? ?? []),
+      assignedHostels: List<String>.from(
+        json['assignedHostels'] as List? ?? [],
+      ),
+      assignedDepartments: List<String>.from(
+        json['assignedDepartments'] as List? ?? [],
+      ),
+      assignedStudentIds: List<String>.from(
+        json['assignedStudentIds'] as List? ?? [],
+      ),
     );
   }
 
