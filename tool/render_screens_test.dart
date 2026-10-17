@@ -21,33 +21,61 @@ import 'package:flutter_test/flutter_test.dart';
 
 final dir = Platform.environment['SHOT_DIR'] ?? '/tmp/campusos_shots';
 
-Future<void> shot(WidgetTester t, String name, {Size size = const Size(390, 844), double text = 1.0, Widget? home}) async {
+Future<void> shot(
+  WidgetTester t,
+  String name, {
+  Size size = const Size(390, 844),
+  double text = 1.0,
+  Widget? home,
+}) async {
   t.view.physicalSize = size * 2;
   t.view.devicePixelRatio = 2;
   addTearDown(t.view.reset);
   final key = GlobalKey();
-  await t.pumpWidget(RepaintBoundary(key: key, child: MediaQuery(data: MediaQueryData(size: size, devicePixelRatio: 2, textScaler: TextScaler.linear(text), padding: const EdgeInsets.only(top: 28, bottom: 16)), child: home ?? const CampusApp())));
+  await t.pumpWidget(
+    RepaintBoundary(
+      key: key,
+      child: MediaQuery(
+        data: MediaQueryData(
+          size: size,
+          devicePixelRatio: 2,
+          textScaler: TextScaler.linear(text),
+          padding: const EdgeInsets.only(top: 28, bottom: 16),
+        ),
+        child: home ?? const CampusApp(),
+      ),
+    ),
+  );
   await t.pump(const Duration(milliseconds: 600));
   await t.pump(const Duration(milliseconds: 600));
   await t.runAsync(() async {
-    final boundary = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    final boundary =
+        key.currentContext!.findRenderObject() as RenderRepaintBoundary;
     final img = await boundary.toImage(pixelRatio: 2);
-    final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+    final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer
+        .asUint8List();
     await Directory(dir).create(recursive: true);
     await File('$dir/$name.png').writeAsBytes(bytes);
   });
 }
 
 Widget tab(UserSession s, ShellTab tab) => MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: AppShell(session: s, initialTab: tab),
-    );
+  debugShowCheckedModeBanner: false,
+  theme: AppTheme.lightTheme,
+  home: AppShell(session: s, initialTab: tab),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    final font = FontLoader('Inter')..addFont(Future.value(ByteData.sublistView(File('assets/fonts/Inter.ttf').readAsBytesSync())));
+    final font = FontLoader('Inter')
+      ..addFont(
+        Future.value(
+          ByteData.sublistView(
+            File('assets/fonts/Inter.ttf').readAsBytesSync(),
+          ),
+        ),
+      );
     await font.load();
   });
 
@@ -68,16 +96,36 @@ void main() {
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     final key = GlobalKey();
-    await t.pumpWidget(RepaintBoundary(key: key, child: MaterialApp(theme: AppTheme.lightTheme, debugShowCheckedModeBanner: false, home: const BrandSplash())));
+    await t.pumpWidget(
+      RepaintBoundary(
+        key: key,
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          debugShowCheckedModeBanner: false,
+          home: const BrandSplash(),
+        ),
+      ),
+    );
     await t.pump();
     await t.runAsync(() async {
-      final img = await (key.currentContext!.findRenderObject() as RenderRepaintBoundary).toImage(pixelRatio: 1);
+      final img =
+          await (key.currentContext!.findRenderObject()
+                  as RenderRepaintBoundary)
+              .toImage(pixelRatio: 1);
       await Directory(dir).create(recursive: true);
-      await File('$dir/00_splash.png').writeAsBytes((await img.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List());
+      await File('$dir/00_splash.png').writeAsBytes(
+        (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer
+            .asUint8List(),
+      );
     });
   });
 
-  for (final e in {'04_attendance_student': ShellTab.attendance, '05_campus_student': ShellTab.campus, '06_geocam': ShellTab.capture, '07_learn': ShellTab.learn}.entries) {
+  for (final e in {
+    '04_attendance_student': ShellTab.attendance,
+    '05_campus_student': ShellTab.campus,
+    '06_geocam': ShellTab.capture,
+    '07_learn': ShellTab.learn,
+  }.entries) {
     testWidgets(e.key, (t) async {
       final s = UserSession.demoStudent();
       AuthService.instance.currentSession.value = s;
@@ -95,12 +143,23 @@ void main() {
     await shot(t, '09_campus_staff', home: tab(s, ShellTab.campus));
   });
 
-  Widget app(Widget home) => MaterialApp(debugShowCheckedModeBanner: false, theme: AppTheme.lightTheme, home: home);
+  Widget app(Widget home) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: AppTheme.lightTheme,
+    home: home,
+  );
 
   for (final id in ['physics_ohms_law', 'cs_sum_two_numbers']) {
     testWidgets('workspace $id', (t) async {
       final a = ActivityRegistry.allActivities.firstWhere((x) => x.id == id);
-      await shot(t, '10_workspace_$id', size: const Size(390, 1700), home: app(ActivityWorkspaceScreen(activity: a, progress: StudentProgress())));
+      await shot(
+        t,
+        '10_workspace_$id',
+        size: const Size(390, 1700),
+        home: app(
+          ActivityWorkspaceScreen(activity: a, progress: StudentProgress()),
+        ),
+      );
     });
   }
   testWidgets('geocam detail', (t) async {
@@ -118,15 +177,43 @@ void main() {
       syncStatus: 'syncFailed',
       syncError: 'Cannot reach verification server.',
     );
-    await shot(t, '11_geocam_detail', size: const Size(390, 1500), home: app(GeoCamDetailScreen(record: r)));
+    await shot(
+      t,
+      '11_geocam_detail',
+      size: const Size(390, 1500),
+      home: app(GeoCamDetailScreen(record: r)),
+    );
   });
   testWidgets('profile sheet', (t) async {
     final s = UserSession.demoStudent();
     AuthService.instance.currentSession.value = s;
-    await shot(t, '12_profile', home: app(Builder(builder: (c) => Scaffold(body: Center(child: ElevatedButton(onPressed: () => showProfileSheet(c, s), child: const Text('open')))))));
+    await shot(
+      t,
+      '12_profile',
+      home: app(
+        Builder(
+          builder: (c) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => showProfileSheet(c, s),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   });
   testWidgets('qr sheet', (t) async {
     final s = UserSession.demoStudent();
-    await shot(t, '13_qr_sheet', home: app(Builder(builder: (c) => Scaffold(body: QrScannerSheet(session: s)))));
+    await shot(
+      t,
+      '13_qr_sheet',
+      home: app(
+        Builder(
+          builder: (c) => Scaffold(body: QrScannerSheet(session: s)),
+        ),
+      ),
+    );
   });
 }

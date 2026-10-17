@@ -1,0 +1,150 @@
+{
+  "practical": {
+    "title": "Ohm's law at work",
+    "subject": "Physics",
+    "difficulty": "Beginner",
+    "objective": "Relate current, voltage and resistance.",
+    "task": "Find the current.",
+    "steps": [
+      "Read the circuit",
+      "Apply I = V / R",
+      "Check the units"
+    ],
+    "inputs": "V and R",
+    "expected": "Current in amperes",
+    "validation": "Your numeric answer is checked against the value computed from the formula (within 5%). If you miss it, a short quiz on the theory comes next.",
+    "concepts": [
+      "Ohm's law",
+      "Resistance",
+      "Current"
+    ],
+    "theory": {
+      "overview": "Current depends on voltage and resistance.",
+      "sections": [
+        {
+          "heading": "The relationship",
+          "body": "Current is proportional to voltage."
+        },
+        {
+          "heading": "Resistance",
+          "body": "More resistance means less current."
+        }
+      ],
+      "key_terms": [
+        {
+          "term": "Current",
+          "meaning": "Flow of charge"
+        }
+      ],
+      "worked_example": "12 V across 6 ohm gives 2 A."
+    },
+    "model": {
+      "formula_label": "I = V / R",
+      "expression": "V / R",
+      "result_name": "Current",
+      "result_unit": "A",
+      "variables": [
+        {
+          "name": "V",
+          "label": "Voltage",
+          "unit": "V",
+          "min": 1.0,
+          "max": 30.0,
+          "step": 1.0,
+          "default": 12.0
+        },
+        {
+          "name": "R",
+          "label": "Resistance",
+          "unit": "ohm",
+          "min": 1.0,
+          "max": 50.0,
+          "step": 1.0,
+          "default": 6.0
+        }
+      ],
+      "question": "A {R} ohm resistor is across {V} volt. Find the current.",
+      "explanation": "Divide V by R."
+    },
+    "scenario": null,
+    "quiz": [
+      {
+        "question": "Q0",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 0,
+        "explanation": "because"
+      },
+      {
+        "question": "Q1",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 1,
+        "explanation": "because"
+      },
+      {
+        "question": "Q2",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 2,
+        "explanation": "because"
+      },
+      {
+        "question": "Q3",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 3,
+        "explanation": "because"
+      },
+      {
+        "question": "Q4",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 0,
+        "explanation": "because"
+      }
+    ],
+    "hints": [
+      "h1",
+      "h2",
+      "h3"
+    ],
+    "recovery": {
+      "question": "R doubles; I?",
+      "options": [
+        "doubles",
+        "halves",
+        "same",
+        "zero"
+      ],
+      "correct_index": 1,
+      "explanation": "I=V/R"
+    },
+    "reflection": [
+      "Explain why",
+      "Explain how"
+    ],
+    "generated_by": "ai"
+  },
+  "cached": false
+}

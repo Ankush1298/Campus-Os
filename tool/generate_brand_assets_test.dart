@@ -7,17 +7,28 @@ import 'package:campus_os/core/branding/campus_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Future<void> _png(String path, int px, {required void Function(Canvas c, double s) draw}) async {
+Future<void> _png(
+  String path,
+  int px, {
+  required void Function(Canvas c, double s) draw,
+}) async {
   final rec = ui.PictureRecorder();
   final canvas = Canvas(rec);
   draw(canvas, px.toDouble());
   final img = await rec.endRecording().toImage(px, px);
-  final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+  final bytes = (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer
+      .asUint8List();
   await File(path).create(recursive: true);
   await File(path).writeAsBytes(bytes);
 }
 
-void _mark(Canvas c, double s, CampusLogoTone tone, {double scale = 1, Color? mono}) {
+void _mark(
+  Canvas c,
+  double s,
+  CampusLogoTone tone, {
+  double scale = 1,
+  Color? mono,
+}) {
   c.save();
   final inner = s * scale;
   c.translate((s - inner) / 2, (s - inner) / 2);
@@ -44,25 +55,57 @@ void main() {
   test('generate launcher, adaptive, monochrome and splash PNGs', () async {
     const res = 'android/app/src/main/res';
     // Legacy square launcher icons (rounded navy tile + symbol).
-    for (final e in {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}.entries) {
-      await _png('$res/mipmap-${e.key}/ic_launcher.png', e.value, draw: (c, s) {
-        _navyBackground(c, s, radius: s * 0.22);
-        _mark(c, s, CampusLogoTone.onDark, scale: 0.78);
-      });
+    for (final e in {
+      'mdpi': 48,
+      'hdpi': 72,
+      'xhdpi': 96,
+      'xxhdpi': 144,
+      'xxxhdpi': 192,
+    }.entries) {
+      await _png(
+        '$res/mipmap-${e.key}/ic_launcher.png',
+        e.value,
+        draw: (c, s) {
+          _navyBackground(c, s, radius: s * 0.22);
+          _mark(c, s, CampusLogoTone.onDark, scale: 0.78);
+        },
+      );
     }
     // Adaptive icon layers (108dp canvas, symbol kept inside the 66dp safe zone).
-    for (final e in {'mdpi': 108, 'hdpi': 162, 'xhdpi': 216, 'xxhdpi': 324, 'xxxhdpi': 432}.entries) {
-      await _png('$res/mipmap-${e.key}/ic_launcher_foreground.png', e.value, draw: (c, s) => _mark(c, s, CampusLogoTone.onDark, scale: 0.6));
-      await _png('$res/mipmap-${e.key}/ic_launcher_monochrome.png', e.value,
-          draw: (c, s) => _mark(c, s, CampusLogoTone.mono, scale: 0.6, mono: Colors.black));
+    for (final e in {
+      'mdpi': 108,
+      'hdpi': 162,
+      'xhdpi': 216,
+      'xxhdpi': 324,
+      'xxxhdpi': 432,
+    }.entries) {
+      await _png(
+        '$res/mipmap-${e.key}/ic_launcher_foreground.png',
+        e.value,
+        draw: (c, s) => _mark(c, s, CampusLogoTone.onDark, scale: 0.6),
+      );
+      await _png(
+        '$res/mipmap-${e.key}/ic_launcher_monochrome.png',
+        e.value,
+        draw: (c, s) =>
+            _mark(c, s, CampusLogoTone.mono, scale: 0.6, mono: Colors.black),
+      );
     }
     // Native splash symbol (centered by the launch theme).
-    await _png('$res/drawable-nodpi/ic_splash_logo.png', 512, draw: (c, s) => _mark(c, s, CampusLogoTone.onDark, scale: 0.9));
+    await _png(
+      '$res/drawable-nodpi/ic_splash_logo.png',
+      512,
+      draw: (c, s) => _mark(c, s, CampusLogoTone.onDark, scale: 0.9),
+    );
     // Store / README preview.
-    await _png('assets/brand/campusos_app_icon_512.png', 512, draw: (c, s) {
-      _navyBackground(c, s, radius: s * 0.22);
-      _mark(c, s, CampusLogoTone.onDark, scale: 0.78);
-    });
+    await _png(
+      'assets/brand/campusos_app_icon_512.png',
+      512,
+      draw: (c, s) {
+        _navyBackground(c, s, radius: s * 0.22);
+        _mark(c, s, CampusLogoTone.onDark, scale: 0.78);
+      },
+    );
     expect(File('$res/mipmap-xxxhdpi/ic_launcher.png').existsSync(), isTrue);
   });
 }

@@ -1,9 +1,14 @@
+import 'generated_practical.dart';
+
 enum ActivityKind {
   physicsOhmsLaw,
   statisticsDataAnalysis,
   chemistryDilution,
   codingChallenge,
   externalVirtualLab,
+
+  /// A practical generated for an arbitrary topic (see GeneratedPractical).
+  generated,
 }
 
 class RecoveryQuestion {
@@ -64,6 +69,7 @@ class PracticalActivity {
   final List<RecoveryQuestion> recoveryQuestions;
   final List<DiagnosticQuizQuestion> diagnosticQuizQuestions;
   final ExternalLabResource? externalLab;
+  final GeneratedPractical? generated;
 
   const PracticalActivity({
     required this.id,
@@ -79,5 +85,36 @@ class PracticalActivity {
     required this.recoveryQuestions,
     required this.diagnosticQuizQuestions,
     this.externalLab,
+    this.generated,
   });
+}
+
+extension GeneratedPracticalActivity on GeneratedPractical {
+  /// Adapts a generated practical to the existing workspace (lives, hints, recovery question, verification quiz).
+  PracticalActivity toActivity() {
+    return PracticalActivity(
+      id: id,
+      subjectId: subject.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_'),
+      title: title,
+      conceptTested: concepts.join(' | '),
+      difficulty: difficulty,
+      objective: objective,
+      kind: ActivityKind.generated,
+      formulaNotation: model?.formulaLabel.isNotEmpty == true ? model!.formulaLabel : subject,
+      hints: hints,
+      recoveryQuestions: [
+        RecoveryQuestion(
+          question: recovery.question,
+          options: recovery.options,
+          correctIndex: recovery.correctIndex,
+          explanation: recovery.explanation,
+          misconceptionTarget: 'generated',
+        ),
+      ],
+      // Generated lessons use the quiz only as remediation after a failed practical (inside the simulation),
+      // never as a second exam after success.
+      diagnosticQuizQuestions: const [],
+      generated: this,
+    );
+  }
 }

@@ -195,7 +195,7 @@ void main() {
           MaterialApp(home: TopicIntakeScreen(progress: StudentProgress())),
         );
 
-        expect(find.text('AI-Assisted Syllabus Mapping'), findsOneWidget);
+        expect(find.text('Syllabus Mapping'), findsOneWidget);
         expect(
           find.text('Sample Syllabus Presets (1-Tap Load):'),
           findsOneWidget,

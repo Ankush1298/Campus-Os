@@ -1,0 +1,187 @@
+{
+  "practical": {
+    "title": "Judicial review",
+    "subject": "Law",
+    "difficulty": "Beginner",
+    "objective": "Relate current, voltage and resistance.",
+    "task": "Find the current.",
+    "steps": [
+      "Read the circuit",
+      "Apply I = V / R",
+      "Check the units"
+    ],
+    "inputs": "V and R",
+    "expected": "Current in amperes",
+    "validation": "Your decisions are scored by the app (60% to pass). If you miss it, a short quiz on the theory comes next. Scenario feedback comes from the generator: check it against your course material.",
+    "concepts": [
+      "Ohm's law",
+      "Resistance",
+      "Current"
+    ],
+    "theory": {
+      "overview": "Current depends on voltage and resistance.",
+      "sections": [
+        {
+          "heading": "The relationship",
+          "body": "Current is proportional to voltage."
+        },
+        {
+          "heading": "Resistance",
+          "body": "More resistance means less current."
+        }
+      ],
+      "key_terms": [
+        {
+          "term": "Current",
+          "meaning": "Flow of charge"
+        }
+      ],
+      "worked_example": "12 V across 6 ohm gives 2 A."
+    },
+    "model": null,
+    "scenario": {
+      "setup": "You are a judge.",
+      "rounds": [
+        {
+          "situation": "Case 0",
+          "choices": [
+            {
+              "text": "Follow the constitution",
+              "score": 2,
+              "feedback": "Correct because of supremacy."
+            },
+            {
+              "text": "Follow public opinion",
+              "score": 1,
+              "feedback": "Partly."
+            },
+            {
+              "text": "Ignore the law",
+              "score": 0,
+              "feedback": "Wrong."
+            }
+          ]
+        },
+        {
+          "situation": "Case 1",
+          "choices": [
+            {
+              "text": "Follow the constitution",
+              "score": 2,
+              "feedback": "Correct because of supremacy."
+            },
+            {
+              "text": "Follow public opinion",
+              "score": 1,
+              "feedback": "Partly."
+            },
+            {
+              "text": "Ignore the law",
+              "score": 0,
+              "feedback": "Wrong."
+            }
+          ]
+        },
+        {
+          "situation": "Case 2",
+          "choices": [
+            {
+              "text": "Follow the constitution",
+              "score": 2,
+              "feedback": "Correct because of supremacy."
+            },
+            {
+              "text": "Follow public opinion",
+              "score": 1,
+              "feedback": "Partly."
+            },
+            {
+              "text": "Ignore the law",
+              "score": 0,
+              "feedback": "Wrong."
+            }
+          ]
+        }
+      ]
+    },
+    "quiz": [
+      {
+        "question": "Q0",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 0,
+        "explanation": "because"
+      },
+      {
+        "question": "Q1",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 1,
+        "explanation": "because"
+      },
+      {
+        "question": "Q2",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 2,
+        "explanation": "because"
+      },
+      {
+        "question": "Q3",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 3,
+        "explanation": "because"
+      },
+      {
+        "question": "Q4",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_index": 0,
+        "explanation": "because"
+      }
+    ],
+    "hints": [
+      "h1",
+      "h2",
+      "h3"
+    ],
+    "recovery": {
+      "question": "R doubles; I?",
+      "options": [
+        "doubles",
+        "halves",
+        "same",
+        "zero"
+      ],
+      "correct_index": 1,
+      "explanation": "I=V/R"
+    },
+    "reflection": [
+      "Explain why",
+      "Explain how"
+    ],
+    "generated_by": "ai"
+  },
+  "cached": false
+}

@@ -62,12 +62,12 @@ class ApiClient {
         : trimmed;
   }
 
-  static Map<String, String> _headers({bool erp = false}) {
+  static Map<String, String> _headers({bool erp = false, String? tokenOverride}) {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    final token = erp ? _effectiveErpToken : _authToken;
+    final token = tokenOverride ?? (erp ? _effectiveErpToken : _authToken);
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
@@ -111,16 +111,18 @@ class ApiClient {
     String path,
     Map<String, dynamic> body, {
     bool erp = false,
+    Duration timeout = const Duration(seconds: 10),
+    String? token,
   }) async {
     final uri = _parseUri(path, erp: erp);
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers(erp: erp),
+            headers: _headers(erp: erp, tokenOverride: token),
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(timeout);
       return _handleResponse(response, erp: erp);
     } on SocketException {
       throw ApiException(

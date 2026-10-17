@@ -12,6 +12,7 @@ import '../engine/simulation_renderers/ohms_law_simulation.dart';
 import '../engine/simulation_renderers/statistics_simulation.dart';
 import '../engine/simulation_renderers/dilution_simulation.dart';
 import '../engine/simulation_renderers/code_challenge_simulation.dart';
+import '../engine/simulation_renderers/generated_simulation.dart';
 import 'flexible_quiz_screen.dart';
 
 class ActivityWorkspaceScreen extends StatefulWidget {
@@ -210,7 +211,9 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      widget.activity.kind == ActivityKind.codingChallenge
+                      widget.activity.kind == ActivityKind.generated
+                          ? 'You learned the theory and passed the practical. The quiz is only needed when a practical is missed, so you are done with this lesson.'
+                          : widget.activity.kind == ActivityKind.codingChallenge
                           ? 'Your code compiled and passed every visible and hidden test. Verify your conceptual retention with a short diagnostic quiz.'
                           : 'You successfully predicted the mathematical outcome within the tolerance limit. Verify your conceptual retention with a short diagnostic quiz.',
                       style: TextStyle(
@@ -219,6 +222,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                         height: 1.4,
                       ),
                     ),
+                    if (widget.activity.diagnosticQuizQuestions.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -245,6 +249,7 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
                         ),
                       ],
                     ),
+                    ],
                   ],
                 ),
               ),
@@ -286,6 +291,15 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
         );
       case ActivityKind.codingChallenge:
         return CodeChallengeSimulation(
+          activity: widget.activity,
+          onLifeDeducted: _onLifeDeducted,
+          onUnlockHint: _onUnlockHint,
+          onTriggerRecovery: _onTriggerRecovery,
+          onCompleted: _onCompleted,
+          currentLives: widget.progress.lives,
+        );
+      case ActivityKind.generated:
+        return GeneratedSimulation(
           activity: widget.activity,
           onLifeDeducted: _onLifeDeducted,
           onUnlockHint: _onUnlockHint,
