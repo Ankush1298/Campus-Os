@@ -258,51 +258,53 @@ void main() {
       expect(find.byKey(const Key('gen-theory-overview')), findsNothing);
     });
 
-    testWidgets('FORMULA practical: sliders drive the question and the graph; a wrong answer forces the review quiz; passing it allows a retry with NEW values', (t) async {
+    testWidgets('FORMULA practical: THREE wrong attempts (answer never shown) are needed before the quiz; passing it (80%) earns a fresh attempt with NEW values', (t) async {
       await big(t);
-      var done = 0, lives = 0;
+      var done = 0;
       final g = gp('generated_practical_server.json');
-      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++, onLife: () => lives++));
+      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++));
       await t.tap(find.byKey(const Key('gen-start-practical')));
       await t.pump();
       expect(find.textContaining('A 6 ohm resistor is across 12 volt'), findsOneWidget);
       expect(painter(t).marker!.dy, 2);
-      t.widget<Slider>(find.byKey(const Key('gen-slider-R'))).onChanged!(12);
-      await t.pump();
-      expect(painter(t).marker!.dy, 1);
+
+      Future<void> wrong() async {
+        await t.enterText(find.byKey(const Key('practiverse-prediction-input')), '5');
+        await t.tap(find.byKey(const Key('practiverse-check')));
+        await t.pump();
+      }
 
       // invalid input is not an attempt
       await t.enterText(find.byKey(const Key('practiverse-prediction-input')), 'abc');
       await t.tap(find.byKey(const Key('practiverse-check')));
       await t.pump();
-      expect([done, lives], [0, 0]);
+      expect(find.byKey(const Key('gen-retry-feedback')), findsNothing);
 
-      // WRONG answer: life lost, Verify disappears, the quiz is now required
-      await t.enterText(find.byKey(const Key('practiverse-prediction-input')), '5');
-      await t.tap(find.byKey(const Key('practiverse-check')));
-      await t.pump();
-      expect([done, lives], [0, 1]);
+      // attempts 1 and 2: still on the practical, answer never revealed, quiz not yet offered
+      await wrong();
+      expect(find.text('Not quite — attempt 1 of 3 used'), findsOneWidget);
+      expect(find.byKey(const Key('practiverse-check')), findsOneWidget);
+      expect(find.byKey(const Key('gen-take-quiz')), findsNothing);
+      expect(find.textContaining('= 2 '), findsNothing); // the real answer (12/6) is never shown
+      await wrong();
+      expect(find.text('Not quite — attempt 2 of 3 used'), findsOneWidget);
+      expect(find.byKey(const Key('gen-take-quiz')), findsNothing);
+
+      // third failure: Verify disappears, the quiz is now required
+      final before = (sliderValue(t, 'V'), sliderValue(t, 'R'));
+      await wrong();
       expect(find.byKey(const Key('practiverse-check')), findsNothing);
       expect(find.byKey(const Key('gen-take-quiz')), findsOneWidget);
-      final before = (sliderValue(t, 'V'), sliderValue(t, 'R'));
 
       await t.tap(find.byKey(const Key('gen-take-quiz')));
       await t.pump();
       expect(find.text('Review quiz'), findsOneWidget);
-      await answerQuiz(t, g, correct: false); // failing the quiz does not unlock the retry
-      expect(find.text('Re-read the theory'), findsOneWidget);
-      expect(find.text('Retry the practical'), findsNothing);
-      await t.tap(find.byKey(const Key('gen-after-quiz'))); // -> theory
-      await t.pump();
-      expect(find.byKey(const Key('gen-theory-overview')), findsOneWidget);
-      await t.tap(find.byKey(const Key('gen-start-practical'))); // "Back to the quiz"
-      await t.pump();
-      await answerQuiz(t, g, correct: true);
-      expect(find.text('Retry the practical'), findsOneWidget);
+      await answerQuiz(t, g, correct: true); // >=80% earns the fresh attempt
+      expect(find.text('Start my fresh attempt'), findsOneWidget);
       await t.tap(find.byKey(const Key('gen-after-quiz')));
       await t.pump();
 
-      // retry: fresh values, graded against the formula
+      // fresh attempt (one life): fresh values, graded against the formula
       final v = sliderValue(t, 'V'), r = sliderValue(t, 'R');
       expect((v, r) == before, isFalse);
       await t.enterText(find.byKey(const Key('practiverse-prediction-input')), (v / r * 1.02).toStringAsFixed(4)); // within 5%
@@ -312,12 +314,47 @@ void main() {
       expect(find.byKey(const Key('gen-passed')), findsOneWidget);
     });
 
+    testWidgets('failing a quiz loads a genuinely NEW quiz (never the same questions)', (t) async {
+      await big(t);
+      final g = gp('generated_practical_server.json');
+      final fresh = [
+        for (var i = 0; i < 3; i++) GeneratedQuiz(question: 'Fresh Q$i?', options: const ['a', 'b', 'c', 'd'], correctIndex: 0, explanation: 'x'),
+      ];
+      List<String>? sawAsked;
+      await t.pumpWidget(host(GeneratedSimulation(
+        activity: g.toActivity(),
+        onLifeDeducted: () {},
+        onUnlockHint: () {},
+        onTriggerRecovery: () {},
+        onCompleted: () {},
+        currentLives: 3,
+        quizFetcher: (asked) async {
+          sawAsked = asked;
+          return fresh;
+        },
+      )));
+      await t.tap(find.byKey(const Key('gen-start-practical')));
+      await t.pump();
+      for (var i = 0; i < 3; i++) {
+        await t.enterText(find.byKey(const Key('practiverse-prediction-input')), '5');
+        await t.tap(find.byKey(const Key('practiverse-check')));
+        await t.pump();
+      }
+      await t.tap(find.byKey(const Key('gen-take-quiz')));
+      await t.pump();
+      await answerQuiz(t, g, correct: false);
+      await t.tap(find.byKey(const Key('gen-after-quiz'))); // "Get a new quiz" -> fetch
+      await t.pumpAndSettle();
+      expect(find.text('1. Fresh Q0?'), findsOneWidget); // the new questions are shown
+      expect(sawAsked, containsAll(g.quiz.map((q) => q.question))); // the fetch avoided the originals
+    });
+
     testWidgets('SCENARIO practical: decisions are scored per round; a poor result forces the quiz; a good retry passes', (t) async {
       await big(t);
-      var done = 0, lives = 0;
+      var done = 0;
       final g = gp('generated_practical_history.json');
       final sc = g.scenario!;
-      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++, onLife: () => lives++));
+      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++));
       expect(find.byKey(const Key('gen-scenario-setup')), findsNothing); // theory first
       await t.tap(find.byKey(const Key('gen-start-practical')));
       await t.pump();
@@ -334,10 +371,28 @@ void main() {
         await t.pump();
       }
 
-      for (var r = 0; r < sc.rounds.length; r++) {
-        await playRound(r, 0); // all worst decisions
+      Future<void> playAll(int score) async {
+        for (var r = 0; r < sc.rounds.length; r++) {
+          await playRound(r, score);
+        }
       }
-      expect([done, lives], [0, 1]);
+
+      // first TWO failed plays only offer a retry, not the quiz
+      await playAll(0);
+      expect(find.byKey(const Key('gen-retry-practical')), findsOneWidget);
+      expect(find.byKey(const Key('gen-take-quiz')), findsNothing);
+      await t.ensureVisible(find.byKey(const Key('gen-retry-practical')));
+      await t.tap(find.byKey(const Key('gen-retry-practical')));
+      await t.pump();
+      await playAll(0);
+      expect(find.byKey(const Key('gen-take-quiz')), findsNothing);
+      await t.ensureVisible(find.byKey(const Key('gen-retry-practical')));
+      await t.tap(find.byKey(const Key('gen-retry-practical')));
+      await t.pump();
+
+      // third failed play forces the quiz
+      await playAll(0);
+      expect([done], [0]);
       expect(find.byKey(const Key('gen-take-quiz')), findsOneWidget);
       await t.ensureVisible(find.byKey(const Key('gen-take-quiz')));
       await t.tap(find.byKey(const Key('gen-take-quiz')));
@@ -346,18 +401,16 @@ void main() {
       await t.tap(find.byKey(const Key('gen-after-quiz')));
       await t.pump();
       expect(find.byKey(const Key('gen-situation')), findsOneWidget); // scenario restarted at round 1
-      for (var r = 0; r < sc.rounds.length; r++) {
-        await playRound(r, 2); // all best decisions
-      }
+      await playAll(2); // all best decisions
       expect(done, 1);
       expect(find.byKey(const Key('gen-passed')), findsOneWidget);
     });
 
-    testWidgets('RECALL lesson built from notes: theory = your notes; failing means re-read and retry (no separate quiz)', (t) async {
+    testWidgets('RECALL lesson built from notes: a wrong submit offers a retry (tries remain); a correct retry passes', (t) async {
       await big(t);
-      var done = 0, lives = 0;
+      var done = 0;
       final g = LocalPracticalBuilder.fromNotes(notes)!;
-      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++, onLife: () => lives++));
+      await t.pumpWidget(sim(g.toActivity(), onDone: () => done++));
       expect(find.textContaining('your own notes'), findsWidgets);
       await t.tap(find.byKey(const Key('gen-start-practical')));
       await t.pump();
@@ -369,12 +422,10 @@ void main() {
       await t.ensureVisible(find.byKey(const Key('practiverse-check')));
       await t.tap(find.byKey(const Key('practiverse-check')));
       await t.pump();
-      expect([done, lives], [0, 1]);
-      await t.ensureVisible(find.byKey(const Key('gen-take-quiz')));
-      await t.tap(find.byKey(const Key('gen-take-quiz'))); // "Re-read the theory, then retry"
-      await t.pump();
-      expect(find.byKey(const Key('gen-theory-overview')), findsOneWidget);
-      await t.tap(find.byKey(const Key('gen-start-practical'))); // "Retry the practical"
+      expect(done, 0);
+      expect(find.byKey(const Key('gen-take-quiz')), findsNothing); // tries remain
+      await t.ensureVisible(find.byKey(const Key('gen-retry-practical')));
+      await t.tap(find.byKey(const Key('gen-retry-practical'))); // "Try again"
       await t.pump();
       for (var i = 0; i < inline; i++) {
         await t.tap(find.byKey(Key('gen-q$i-o${g.quiz[i].correctIndex}')));

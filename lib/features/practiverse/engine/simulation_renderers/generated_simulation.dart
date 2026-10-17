@@ -2,14 +2,20 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../auth/services/auth_service.dart';
 import '../../models/generated_practical.dart';
 import '../../models/practical_activity.dart';
 import '../../widgets/line_chart.dart';
+import '../practical_generator.dart';
 
 enum _Phase { theory, practical, quiz }
 
 /// Runs a generated lesson: 1) THEORY, 2) a PRACTICAL simulation graded by the app, 3) a QUIZ only when the
-/// practical was failed (then the student retries the practical with fresh values / order).
+/// practical was failed three times.
+///
+/// Rules: 3 attempts at the practical. A failed attempt shows a progressive hint (never the real answer).
+/// After the third failure a review quiz is required; scoring at least 80% earns ONE new attempt (with fresh
+/// values). Failing the quiz gives a NEW quiz (never the same questions again).
 ///
 /// Practicals: a formula exercise (sliders + graph, answer computed on the device), a decision scenario
 /// (scored per round), or, for lessons built from pasted notes, a recall exercise.
@@ -21,6 +27,9 @@ class GeneratedSimulation extends StatefulWidget {
   final VoidCallback onCompleted;
   final int currentLives;
 
+  /// Test hook: supplies a fresh quiz avoiding the already-asked question texts. Default: bank -> server -> local.
+  final Future<List<GeneratedQuiz>> Function(List<String> asked)? quizFetcher;
+
   const GeneratedSimulation({
     super.key,
     required this.activity,
@@ -29,6 +38,7 @@ class GeneratedSimulation extends StatefulWidget {
     required this.onTriggerRecovery,
     required this.onCompleted,
     required this.currentLives,
+    this.quizFetcher,
   });
 
   @override
@@ -44,6 +54,10 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
   bool _theoryRead = false;
   bool _passed = false;
   int _attempt = 0;
+
+  // The student gets 3 tries at the practical; each earned "new life" (after an 80% quiz) grants ONE more try.
+  int _fails = 0;
+  int _maxFails = 3;
 
   // numeric practical
   late Map<String, double> _env = _m?.defaults() ?? {};
@@ -66,8 +80,12 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
   int _recallScore = 0;
 
   // remedial quiz
+  late List<GeneratedQuiz> _quiz = _g.quiz; // the questions currently shown; replaced by a fresh set on a quiz failure
+  final Set<String> _asked = {}; // every question already shown, so a fresh quiz never repeats one
   final Map<int, int> _quizPicked = {};
   bool _quizSubmitted = false;
+  bool _everQuizzed = false;
+  bool _loadingQuiz = false;
   int _quizScore = 0;
   bool _needsQuiz = false;
 
@@ -83,11 +101,16 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
   }
 
   // ------------------------------------------------------------------ flow control
+  // A failed attempt: bookkeeping + unlock the next progressive hint (never the answer). Only after the allowed
+  // number of tries is used up does the review quiz become required. Generated lessons track their own attempts,
+  // so a failure does NOT pop the shared-lives recovery dialog.
   void _failedPractical() {
-    widget.onLifeDeducted();
     widget.onUnlockHint();
-    if (widget.currentLives <= 1) widget.onTriggerRecovery();
-    setState(() => _needsQuiz = true);
+    widget.onLifeDeducted();
+    setState(() {
+      _fails++;
+      _needsQuiz = _fails >= _maxFails;
+    });
   }
 
   void _succeeded() {
@@ -95,11 +118,81 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
     widget.onCompleted();
   }
 
-  void _toQuiz() => setState(() {
-        _phase = _Phase.quiz;
-        _quizPicked.clear();
-        _quizSubmitted = false;
-      });
+  /// Passing the quiz (80%) earns ONE fresh attempt with new values. Miss that, and a brand-new quiz is required.
+  void _newLife() {
+    setState(() {
+      _fails = 0;
+      _maxFails = 1;
+    });
+    _retryPractical();
+  }
+
+  /// Opens the review quiz. The first time it uses the lesson's own questions; every time after that it loads a
+  /// fresh set that avoids everything already asked.
+  void _toQuiz() {
+    if (_everQuizzed) {
+      setState(() => _phase = _Phase.quiz);
+      _loadFreshQuiz();
+      return;
+    }
+    _everQuizzed = true;
+    _asked.addAll(_g.quiz.map((q) => q.question));
+    setState(() {
+      _phase = _Phase.quiz;
+      _quiz = _g.quiz;
+      _quizPicked.clear();
+      _quizSubmitted = false;
+    });
+  }
+
+  String _theoryText() {
+    final t = _g.theory;
+    if (t != null) {
+      return [t.overview, for (final s in t.sections) '${s.heading}. ${s.body}', t.workedExample].where((s) => s.trim().isNotEmpty).join('\n');
+    }
+    return [_g.objective, ..._g.concepts].where((s) => s.trim().isNotEmpty).join('\n');
+  }
+
+  /// Fetches a NEW quiz that avoids every already-asked question. Offline, it falls back to reshuffling the current
+  /// options so answers still can't be memorised by position.
+  Future<void> _loadFreshQuiz() async {
+    setState(() => _loadingQuiz = true);
+    List<GeneratedQuiz> next;
+    try {
+      final fetched = widget.quizFetcher != null
+          ? await widget.quizFetcher!(_asked.toList())
+          : await fetchFreshQuiz(
+              session: AuthService.instance.currentSession.value,
+              title: widget.activity.title,
+              theory: _theoryText(),
+              asked: _asked.toList(),
+            );
+      next = [for (final q in fetched) if (q.question.trim().isNotEmpty && !_asked.contains(q.question)) q];
+      if (next.length < 3) throw StateError('too few new questions');
+    } catch (_) {
+      // ponytail: offline fallback reshuffles options; genuinely new questions need the server quiz endpoint.
+      final rng = math.Random(DateTime.now().microsecondsSinceEpoch);
+      next = [for (final q in _quiz) _shuffleOptions(q, rng)];
+    }
+    if (!mounted) return;
+    setState(() {
+      _quiz = next;
+      _asked.addAll(next.map((q) => q.question));
+      _quizPicked.clear();
+      _quizSubmitted = false;
+      _loadingQuiz = false;
+    });
+  }
+
+  static GeneratedQuiz _shuffleOptions(GeneratedQuiz q, math.Random rng) {
+    final idx = List<int>.generate(q.options.length, (i) => i)..shuffle(rng);
+    return GeneratedQuiz(
+      question: q.question,
+      options: [for (final i in idx) q.options[i]],
+      correctIndex: idx.indexOf(q.correctIndex),
+      explanation: q.explanation,
+    );
+  }
 
   void _retryPractical() {
     _attempt++;
@@ -278,17 +371,14 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
             key: const Key('gen-start-practical'),
             onPressed: () {
               _theoryRead = true;
-              final hasQuiz = _m != null || _sc != null;
-              if (_needsQuiz && hasQuiz) {
-                _toQuiz(); // failed the practical: back to the review quiz (fresh answers)
-              } else if (_needsQuiz) {
-                _retryPractical(); // recall lessons: re-read, then try again
+              if (_needsQuiz) {
+                _toQuiz(); // out of attempts: back to the review quiz
               } else {
                 setState(() => _phase = _Phase.practical);
               }
             },
             icon: const Icon(Icons.play_arrow_rounded),
-            label: Text(_needsQuiz ? ((_m != null || _sc != null) ? 'Back to the quiz' : 'Retry the practical') : (_theoryRead ? 'Back to the practical' : 'I have read it: start the practical')),
+            label: Text(_needsQuiz ? 'Back to the quiz' : (_theoryRead ? 'Back to the practical' : 'I have read it: start the practical')),
           ),
         ),
       ],
@@ -305,18 +395,37 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
     return _recall();
   }
 
+  // Shown once all attempts are used up: the only way forward is the review quiz (answer is never revealed here).
   Widget _afterFailure(String detail) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _feedback(false, 'Not quite. Time to review.', detail),
+          _feedback(false, 'Out of attempts. Time to review.', detail),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               key: const Key('gen-take-quiz'),
-              onPressed: _m != null || _sc != null ? _toQuiz : () => setState(() => _phase = _Phase.theory),
-              icon: Icon(_m != null || _sc != null ? Icons.quiz_rounded : Icons.menu_book_rounded),
-              label: Text(_m != null || _sc != null ? 'Take the review quiz' : 'Re-read the theory, then retry'),
+              onPressed: _toQuiz,
+              icon: const Icon(Icons.quiz_rounded),
+              label: const Text('Take the review quiz'),
+            ),
+          ),
+        ],
+      );
+
+  // Shown after a failed attempt while tries remain: a new hint is unlocked, the answer is never shown.
+  Widget _tryAgain(String detail) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _feedback(false, 'Not quite — attempt $_fails of $_maxFails used', detail, key: const Key('gen-retry-feedback')),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              key: const Key('gen-retry-practical'),
+              onPressed: _retryPractical,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
             ),
           ),
         ],
@@ -401,8 +510,8 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
                 Text('What is the ${m.resultName.toLowerCase()} for the values above? (${m.resultUnit.isEmpty ? 'no unit' : m.resultUnit})', style: const TextStyle(fontSize: 13, color: Color(0xFF46566F))),
                 const SizedBox(height: 10),
                 if (_needsQuiz)
-                  _afterFailure('${m.resultName} = ${m.expression} = ${GeneratedModel.fmt(current ?? double.nan)} ${m.resultUnit}\n${m.explanation}')
-                else
+                  _afterFailure('You have used all your attempts without the right value. Pass a short review quiz (80%) to earn a fresh attempt with new values. The answer is never shown — you work it out yourself.')
+                else ...[
                   Row(
                     children: [
                       Expanded(
@@ -417,6 +526,11 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
                       ElevatedButton(key: const Key('practiverse-check'), onPressed: _verifyNumber, child: const Text('Verify')),
                     ],
                   ),
+                  if (_evaluated && !_correct) ...[
+                    const SizedBox(height: 12),
+                    _feedback(false, 'Not quite — attempt $_fails of $_maxFails used', 'A new hint is unlocked above. Re-check your working with the formula and sliders, then try again. The answer is never shown.', key: const Key('gen-retry-feedback')),
+                  ],
+                ],
                 if (_evaluated && _correct) ...[
                   const SizedBox(height: 12),
                   _feedback(true, 'Correct', '${m.resultName} = ${m.expression} = ${GeneratedModel.fmt(current ?? double.nan)} ${m.resultUnit}\n${m.explanation}'),
@@ -516,7 +630,10 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
             ] else ...[
               Text('Your score: $_score / ${sc.maxScore}', key: const Key('gen-scenario-score'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
               const SizedBox(height: 8),
-              if (_needsQuiz) _afterFailure('You need at least ${(GeneratedScenario.passFraction * 100).round()}% to pass. Review the theory with a short quiz, then retry the scenario.'),
+              if (_needsQuiz)
+                _afterFailure('You scored below ${(GeneratedScenario.passFraction * 100).round()}% on every attempt. Pass a short review quiz (80%) to earn a fresh attempt.')
+              else if (!_passed)
+                _tryAgain('You need at least ${(GeneratedScenario.passFraction * 100).round()}%. Review the setup and decisions, then play the scenario again.'),
             ],
             if (_g.reflection.isNotEmpty && finished) ...[
               const SizedBox(height: 12),
@@ -541,7 +658,10 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
             for (var i = 0; i < _recallCount; i++)
               _radioQuestion(prefix: '${i + 1}.', q: _g.quiz[i], picked: _recallPicked[i], locked: _recallSubmitted, onPick: (v) => setState(() => _recallPicked[i] = v), showReview: _recallSubmitted, keyBase: 'gen-q$i'),
             if (_inputError != null) Text(_inputError!, style: const TextStyle(color: Color(0xFF9E1C27), fontSize: 12.5)),
-            if (_recallSubmitted && !_correct) _afterFailure('Score $_recallScore / $_recallCount. You need at least 60%.')
+            if (_recallSubmitted && !_correct)
+              (_needsQuiz
+                  ? _afterFailure('Score $_recallScore / $_recallCount. Out of attempts — pass a short review quiz (80%) to earn a fresh attempt.')
+                  : _tryAgain('Score $_recallScore / $_recallCount (you need at least 60%). Re-read your notes above, then try again.'))
             else if (!_recallSubmitted)
               SizedBox(
                 width: double.infinity,
@@ -576,8 +696,16 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
 
   // ------------------------------------------------------------------ phase 3: remedial quiz
   Widget _quizView() {
-    final quiz = _g.quiz;
-    final passed = _quizSubmitted && _quizScore / quiz.length >= 0.6;
+    if (_loadingQuiz) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 12), Text('Preparing a new quiz…')])),
+        ),
+      );
+    }
+    final quiz = _quiz;
+    final passed = _quizSubmitted && _quizScore / quiz.length >= 0.8;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -586,7 +714,7 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
           children: [
             const Row(children: [Icon(Icons.quiz_rounded, size: 18, color: Color(0xFFD98A00)), SizedBox(width: 8), Text('Review quiz', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15))]),
             const SizedBox(height: 4),
-            const Text('You missed the practical, so check the theory first. Pass this quiz (60%) to retry the practical with new values.', style: TextStyle(fontSize: 12.5, color: Color(0xFF46566F))),
+            const Text('You missed the practical, so check the theory first. Score at least 80% to earn a fresh attempt with new values. Fail, and you get a brand-new quiz, never the same questions.', style: TextStyle(fontSize: 12.5, color: Color(0xFF46566F))),
             const SizedBox(height: 10),
             for (var i = 0; i < quiz.length; i++)
               _radioQuestion(prefix: '${i + 1}.', q: quiz[i], picked: _quizPicked[i], locked: _quizSubmitted, onPick: (v) => setState(() => _quizPicked[i] = v), showReview: _quizSubmitted, keyBase: 'gen-rq$i'),
@@ -615,23 +743,14 @@ class _GeneratedSimulationState extends State<GeneratedSimulation> {
                 ),
               )
             else ...[
-              _feedback(passed, passed ? 'Quiz passed: $_quizScore / ${quiz.length}' : 'Quiz score $_quizScore / ${quiz.length}', passed ? 'Good. Now retry the practical with new values.' : 'Read the reviews above, re-read the theory and try the quiz again.', key: const Key('gen-quiz-result')),
+              _feedback(passed, passed ? 'Quiz passed: $_quizScore / ${quiz.length}' : 'Quiz score $_quizScore / ${quiz.length}', passed ? 'Good. You have earned a fresh attempt at the practical with new values.' : 'Read the reviews above. You get a brand-new quiz (never the same questions) to try again.', key: const Key('gen-quiz-result')),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   key: const Key('gen-after-quiz'),
-                  onPressed: passed
-                      ? _retryPractical
-                      : () => setState(() {
-                            if (_g.theory != null) {
-                              _phase = _Phase.theory;
-                            } else {
-                              _quizPicked.clear();
-                              _quizSubmitted = false;
-                            }
-                          }),
-                  child: Text(passed ? 'Retry the practical' : (_g.theory != null ? 'Re-read the theory' : 'Try the quiz again')),
+                  onPressed: passed ? _newLife : _loadFreshQuiz,
+                  child: Text(passed ? 'Start my fresh attempt' : 'Get a new quiz'),
                 ),
               ),
             ],
