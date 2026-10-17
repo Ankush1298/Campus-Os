@@ -20,6 +20,58 @@ class LocalPracticalBuilder {
     'known', 'using', 'used', 'uses', 'make', 'makes', 'made', 'often', 'order', 'can', 'its',
   };
 
+  static String _key(String q) => q.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+
+  /// Fill-in-the-blank questions written from [text] (a lesson's theory, or pasted notes), skipping any question
+  /// whose sentence was already asked. Works offline; returns fewer than [count] (or none) when the text runs out.
+  static List<GeneratedQuiz> quizFromText(String text, {Set<String> asked = const {}, int count = 5, int seed = 0}) {
+    final askedKeys = {for (final a in asked) _key(a)};
+    final sentences = <String>[];
+    for (final raw in text.replaceAll('\r', '').split(RegExp(r'(?<=[.!?])\s+|\n+'))) {
+      final s = raw.replaceFirst(RegExp(r'^\s*(?:[-*\u2022]|\d+[.)])\s*'), '').trim();
+      if (s.length >= 35 && s.length <= 300 && !sentences.contains(s) && RegExp(r'[A-Za-z]{3,}\s+[A-Za-z]{3,}').hasMatch(s)) sentences.add(s);
+    }
+    final freq = <String, int>{};
+    for (final w in RegExp(r"[A-Za-z][A-Za-z\-]{3,}").allMatches(text.toLowerCase())) {
+      freq[w[0]!] = (freq[w[0]!] ?? 0) + 1;
+    }
+    final used = <String>{};
+    final built = <({String sentence, String answer})>[];
+    for (final s in sentences) {
+      String? best;
+      var bestScore = -999.0;
+      for (final m in RegExp(r"[A-Za-z][A-Za-z\-]{4,}").allMatches(s)) {
+        final w = m[0]!, lw = w.toLowerCase();
+        if (_stop.contains(lw) || used.contains(lw)) continue;
+        final capitalMid = m.start > 0 && w[0] == w[0].toUpperCase() && w[0] != w[0].toLowerCase();
+        final score = w.length + (capitalMid ? 4 : 0) - 2.0 * ((freq[lw] ?? 1) - 1);
+        if (score > bestScore) {
+          bestScore = score;
+          best = w;
+        }
+      }
+      if (best != null) {
+        used.add(best.toLowerCase());
+        built.add((sentence: s, answer: best));
+      }
+    }
+    if (built.length < 4) return const [];
+    final rng = math.Random(text.hashCode ^ seed);
+    final out = <GeneratedQuiz>[];
+    for (final item in built) {
+      final blank = item.sentence.replaceFirst(RegExp('\\b${RegExp.escape(item.answer)}\\b', caseSensitive: false), '_____');
+      final question = 'Fill in the blank: $blank';
+      if (askedKeys.contains(_key(question))) continue;
+      final pool = [for (final o in built) if (o.answer.toLowerCase() != item.answer.toLowerCase()) o.answer]
+        ..sort((a, b) => (a.length - item.answer.length).abs().compareTo((b.length - item.answer.length).abs()));
+      final options = [...pool.take(3), item.answer]..shuffle(rng);
+      if (options.toSet().length != 4) continue;
+      out.add(GeneratedQuiz(question: question, options: options, correctIndex: options.indexOf(item.answer), explanation: 'The lesson says: "${item.sentence}"'));
+      if (out.length >= count) break;
+    }
+    return out;
+  }
+
   /// True when [text] has enough sentences to build at least [minQuestions] questions.
   static bool canBuild(String text) => fromNotes(text) != null;
 

@@ -90,7 +90,10 @@ class _ActivityWorkspaceScreenState extends State<ActivityWorkspaceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.activity.title),
-        actions: [
+        // Generated lessons count their own 3 attempts (shown inside the lesson), not the shared lives.
+        actions: widget.activity.kind == ActivityKind.generated
+            ? null
+            : [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: Center(

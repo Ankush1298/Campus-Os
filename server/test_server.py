@@ -530,6 +530,25 @@ class CampusBackendTests(unittest.TestCase):
             srv.DEMO_TOKENS_PER_IP_HOUR, srv.DEMO_GEN_PER_DAY, srv.DEMO_AI_ENABLED = old
             srv._demo_issued.clear(); srv._gen_cache.clear(); srv._gen_calls.clear(); srv._demo_day[:] = ["", 0]
 
+    # 13. Fresh review quizzes
+    def test_35_fresh_quiz_endpoint_auth_limits_and_demo_scope(self):
+        import practical_gen
+        srv._gen_calls.clear(); srv._demo_issued.clear(); srv._demo_day[:] = ["", 0]
+        seen = []
+        real = practical_gen.generate_quiz
+        practical_gen.generate_quiz = lambda title, theory, avoid, client=None: (seen.append(avoid) or [{"question": "q", "options": ["a", "b", "c", "d"], "correct_index": 0, "explanation": "e"}])
+        try:
+            payload = {"title": "T", "theory": "x" * 60, "avoid": ["old question"]}
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload)[0], 401)
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload, token=self._login("22CS1042"))[0], 200)
+            self.assertEqual(seen[0], ["old question"])
+            tok = self._demo_token()                       # the restricted demo token may fetch quizzes, nothing else
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload, token=tok)[0], 200)
+            self.assertEqual(self._request("GET", "/api/erp/leaves", token=tok)[0], 403)
+        finally:
+            practical_gen.generate_quiz = real
+            srv._gen_calls.clear(); srv._demo_issued.clear(); srv._demo_day[:] = ["", 0]
+
 
 if __name__ == "__main__":
     unittest.main()

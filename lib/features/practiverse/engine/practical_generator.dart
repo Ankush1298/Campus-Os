@@ -17,6 +17,27 @@ class PracticalGenResult {
   bool get ok => practical != null;
 }
 
+/// Asks the server for a NEW review quiz that avoids [asked]. Throws on any failure (the caller falls back to
+/// a locally written quiz). Demo sessions use the restricted demo token, like generation.
+Future<List<GeneratedQuiz>> fetchFreshQuiz({
+  required UserSession? session,
+  required String title,
+  required String theory,
+  required List<String> asked,
+  Future<Map<String, dynamic>> Function(Map<String, dynamic> body, String? token)? post,
+}) async {
+  if (session == null) throw StateError('not signed in');
+  Future<Map<String, dynamic>> send(Map<String, dynamic> body, String? token) =>
+      ApiClient.post('/api/practiverse/quiz', body, erp: true, timeout: const Duration(seconds: 80), token: token);
+  String? token;
+  if (session.isDemo) {
+    final res = await ApiClient.post('/api/auth/demo', {}, erp: true, timeout: const Duration(seconds: 30), token: '');
+    token = res['token'] as String?;
+  }
+  final res = await (post ?? send)({'title': title, 'theory': theory, 'avoid': asked.take(30).toList()}, token);
+  return [for (final q in (res['quiz'] as List)) ?GeneratedQuiz.tryParse(q)];
+}
+
 typedef RemoteGenerate = Future<Map<String, dynamic>> Function(String text);
 
 /// Turns any topic or syllabus into a practical.
