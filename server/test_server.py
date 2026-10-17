@@ -438,6 +438,49 @@ class CampusBackendTests(unittest.TestCase):
         # restore the original assignment for other tests
         self._request("POST", "/api/erp/admin/employee-approvers", {"employeeId": "FAC-CS-12", "approverId": "FAC-CS-08"}, token=admin)
 
+    # 11. PractiVerse practical generation endpoint
+    def test_30_generate_requires_auth_and_valid_text(self):
+        self.assertEqual(self._request("POST", "/api/practiverse/generate", {"text": "Photosynthesis"})[0], 401)
+        tok = self._login("22CS1042")
+        self.assertEqual(self._request("POST", "/api/practiverse/generate", {"text": ""}, token=tok)[0], 400)
+        self.assertEqual(self._request("POST", "/api/practiverse/generate", {"nope": 1}, token=tok)[0], 400)
+
+    def test_31_generate_reports_unconfigured_server_honestly(self):
+        import practical_gen
+        old = {k: os.environ.pop(k, None) for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GROQ_API_KEY", "CAMPUSOS_LLM_PROVIDER")}
+        try:
+            status, body = self._request("POST", "/api/practiverse/generate", {"text": "Photosynthesis in C3 plants"}, token=self._login("22CS1042"))
+        finally:
+            for k, v in old.items():
+                if v is not None:
+                    os.environ[k] = v
+        self.assertEqual(status, 503)
+        self.assertEqual(body["error"]["code"], "llm_not_configured")
+
+    def test_32_generate_caches_and_rate_limits_per_user(self):
+        import practical_gen
+        calls = []
+        spec = {"title": "T", "generated_by": "ai"}
+        real = practical_gen.generate
+        practical_gen.generate = lambda text, client=None: (calls.append(text) or dict(spec))
+        old_limit = srv.GEN_PER_HOUR
+        srv._gen_cache.clear(); srv._gen_calls.clear()
+        try:
+            tok = self._login("22EE2001")
+            s1, b1 = self._request("POST", "/api/practiverse/generate", {"text": "Supply and demand"}, token=tok)
+            s2, b2 = self._request("POST", "/api/practiverse/generate", {"text": "  supply AND demand "}, token=tok)
+            self.assertEqual((s1, b1["cached"], s2, b2["cached"], len(calls)), (200, False, 200, True, 1))
+            srv.GEN_PER_HOUR = 2
+            self.assertEqual(self._request("POST", "/api/practiverse/generate", {"text": "Topic two"}, token=tok)[0], 200)
+            status, body = self._request("POST", "/api/practiverse/generate", {"text": "Topic three"}, token=tok)
+            self.assertEqual((status, body["error"]["code"]), (429, "rate_limited"))
+            # another user is not affected
+            self.assertEqual(self._request("POST", "/api/practiverse/generate", {"text": "Topic four"}, token=self._login("FAC-CS-12"))[0], 200)
+        finally:
+            practical_gen.generate = real
+            srv.GEN_PER_HOUR = old_limit
+            srv._gen_cache.clear(); srv._gen_calls.clear()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import hmac
 import json
 import os
@@ -24,6 +25,8 @@ from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import practical_gen
 
 DB_PATH = os.environ.get("CAMPUSOS_DB_PATH", str(Path(__file__).parent / "campusos.db"))
 # Token signing key. Set CAMPUSOS_SECRET_KEY in production; otherwise a random per-process key is
@@ -46,6 +49,13 @@ MAX_BODY_BYTES = 64 * 1024
 LOGIN_MAX_FAILURES = 5
 LOGIN_LOCK_SEC = 300
 _login_failures: Dict[str, List[float]] = {}  # ponytail: in-memory, per-process; use a shared store if multi-instance
+
+
+# Practical generation: per-user rate limit + small in-memory cache (same text -> same practical, no repeat cost).
+GEN_PER_HOUR = int(os.environ.get("CAMPUSOS_GEN_PER_HOUR", "12"))
+_gen_calls: Dict[str, List[float]] = {}  # ponytail: per-process; use a shared store if multi-instance
+_gen_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+GEN_CACHE_SEC = 24 * 3600
 
 
 def hash_password(password: str) -> str:
@@ -429,6 +439,10 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         if not user:
             return self._error(401, "Missing or invalid Authorization Bearer token.", code="unauthorized")
 
+        # POST /api/practiverse/generate   {"text": "..."}  (any signed-in role)
+        if path == "/api/practiverse/generate":
+            return self._handle_generate_practical(user)
+
         # POST /api/erp/leaves
         if path == "/api/erp/leaves":
             return self._handle_create_leave(user)
@@ -709,6 +723,31 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         cancelled_leave = self._fetch_full_leave(conn, leave_id)
         conn.close()
         return self._json_response(cancelled_leave)
+
+    def _handle_generate_practical(self, caller: Dict[str, Any]):
+        body = self._read_json()
+        text = str((body or {}).get("text", "")).strip() if isinstance(body, dict) else ""
+        if len(text) < practical_gen.MIN_TEXT:
+            return self._error(400, "Enter a topic, chapter notes or a syllabus.", code="validation_error")
+        key = hashlib.sha256(text.lower().encode()).hexdigest()
+        now = time.time()
+        hit = _gen_cache.get(key)
+        if hit and now - hit[0] < GEN_CACHE_SEC:
+            return self._json_response({"practical": hit[1], "cached": True})
+        recent = [t for t in _gen_calls.get(caller["sub"], []) if now - t < 3600]
+        if len(recent) >= GEN_PER_HOUR:
+            return self._error(429, f"Practical generation limit reached ({GEN_PER_HOUR} per hour). Try again later.", code="rate_limited")
+        try:
+            spec = practical_gen.generate(text)
+        except practical_gen.GenError as e:
+            if e.code not in ("llm_not_configured", "validation_error"):
+                logging.getLogger("campusos").warning("practical generation failed: %s (%s)", e.code, e.message)
+            return self._error(e.status, e.message, code=e.code)
+        _gen_calls[caller["sub"]] = recent + [now]
+        if len(_gen_cache) > 200:
+            _gen_cache.clear()
+        _gen_cache[key] = (now, spec)
+        return self._json_response({"practical": spec, "cached": False})
 
     def _handle_get_employee_leaves(self, caller: Dict[str, Any], employee_id: str):
         # Own history only (admin may view anyone's). Students never reach employee data.
