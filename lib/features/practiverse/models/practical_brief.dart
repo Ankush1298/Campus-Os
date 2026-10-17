@@ -1,3 +1,4 @@
+import 'generated_practical.dart';
 import 'practical_activity.dart';
 
 /// The student-facing explanation shown at the top of every practical, in one consistent structure.
@@ -22,7 +23,25 @@ class PracticalBrief {
 }
 
 class PracticalBriefs {
-  static PracticalBrief of(PracticalActivity a) => _byId[a.id] ?? _fallback(a);
+  static PracticalBrief of(PracticalActivity a) {
+    final g = a.generated;
+    if (g != null) {
+      return PracticalBrief(
+        objective: g.objective,
+        task: g.model != null ? 'Work out the ${g.model!.resultName.toLowerCase()} for the values shown.' : g.task,
+        steps: g.steps,
+        inputs: g.inputs,
+        expected: g.expected,
+        validation: g.model != null
+            ? 'Your numeric answer is checked against the value computed from the formula (within 5%). If you miss it, a short quiz on the theory comes next.'
+            : (g.scenario != null
+                ? 'Your decisions are scored by the app (60% to pass). If you miss it, a short quiz on the theory comes next.'
+                : 'The questions are scored by the app (60% to pass). If you miss it, you re-read the theory and retry.'),
+        notice: '${GeneratedPractical.flowNote}\n${g.sourceLabel}',
+      );
+    }
+    return _byId[a.id] ?? _fallback(a);
+  }
 
   static PracticalBrief _fallback(PracticalActivity a) => PracticalBrief(
     objective: a.objective,

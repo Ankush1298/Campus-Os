@@ -58,6 +58,18 @@ _gen_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 GEN_CACHE_SEC = 24 * 3600
 
 
+# Restricted demo access: lets the app's "Instant Demo" buttons use AI practical generation without a password.
+# The token has role "demo", lasts 1 hour and is refused by EVERY endpoint except practical generation (see
+# _demo_allowed). Abuse is bounded by a per-IP token limit and a global daily generation cap.
+DEMO_AI_ENABLED = os.environ.get("CAMPUSOS_DEMO_AI", "1") != "0"
+DEMO_TOKEN_TTL = 3600
+DEMO_TOKENS_PER_IP_HOUR = int(os.environ.get("CAMPUSOS_DEMO_TOKENS_PER_IP", "8"))
+DEMO_GEN_PER_DAY = int(os.environ.get("CAMPUSOS_DEMO_GEN_PER_DAY", "60"))
+DEMO_GEN_PER_TOKEN_HOUR = 6
+_demo_issued: Dict[str, List[float]] = {}
+_demo_day: List[Any] = ["", 0]  # [YYYY-MM-DD, generations today]
+
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
@@ -87,8 +99,8 @@ def _unb64(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
 
 
-def issue_token(sub: str, name: str, role: str) -> Dict[str, Any]:
-    exp = int(time.time()) + TOKEN_TTL_SEC
+def issue_token(sub: str, name: str, role: str, ttl: Optional[int] = None) -> Dict[str, Any]:
+    exp = int(time.time()) + (ttl or TOKEN_TTL_SEC)
     payload = json.dumps({"sub": sub, "name": name, "role": role.lower(), "exp": exp}, separators=(",", ":"))
     body = _b64(payload.encode())
     sig = _b64(hmac.new(JWT_SECRET, body.encode(), hashlib.sha256).digest())
@@ -394,6 +406,8 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         user = self._authenticate()
         if not user:
             return self._error(401, "Missing or invalid Authorization Bearer token.", code="unauthorized")
+        if user["role"] == "demo":
+            return self._error(403, "Demo access can only generate practicals.", code="forbidden")
 
         # GET /api/erp/leaves
         if path == "/api/erp/leaves":
@@ -435,13 +449,23 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         if path == "/api/auth/login":
             return self._handle_login()
 
+        # POST /api/auth/demo (public, restricted token: practical generation only)
+        if path == "/api/auth/demo":
+            return self._handle_demo_token()
+
         user = self._authenticate()
         if not user:
             return self._error(401, "Missing or invalid Authorization Bearer token.", code="unauthorized")
+        if user["role"] == "demo" and path not in ("/api/practiverse/generate", "/api/practiverse/quiz"):
+            return self._error(403, "Demo access can only generate practicals.", code="forbidden")
 
         # POST /api/practiverse/generate   {"text": "..."}  (any signed-in role)
         if path == "/api/practiverse/generate":
             return self._handle_generate_practical(user)
+
+        # POST /api/practiverse/quiz   {"title","theory","avoid":[...]}  fresh review quiz (never repeats avoided questions)
+        if path == "/api/practiverse/quiz":
+            return self._handle_fresh_quiz(user)
 
         # POST /api/erp/leaves
         if path == "/api/erp/leaves":
@@ -724,6 +748,23 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         conn.close()
         return self._json_response(cancelled_leave)
 
+    def _client_ip(self) -> str:
+        fwd = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        return fwd or self.client_address[0]
+
+    def _handle_demo_token(self):
+        if not DEMO_AI_ENABLED:
+            return self._error(404, "Demo AI access is disabled on this server.", code="not_found")
+        ip, now = self._client_ip(), time.time()
+        recent = [t for t in _demo_issued.get(ip, []) if now - t < 3600]
+        if len(recent) >= DEMO_TOKENS_PER_IP_HOUR:
+            return self._error(429, "Too many demo sessions from this network. Try again later.", code="rate_limited")
+        _demo_issued[ip] = recent + [now]
+        if len(_demo_issued) > 5000:
+            _demo_issued.clear()
+        tok = issue_token(sub="demo-" + secrets.token_hex(6), name="Demo", role="demo", ttl=DEMO_TOKEN_TTL)
+        return self._json_response({"token": tok["token"], "expires_at": tok["expires_at"], "role": "demo", "scope": "practiverse-generate"})
+
     def _handle_generate_practical(self, caller: Dict[str, Any]):
         body = self._read_json()
         text = str((body or {}).get("text", "")).strip() if isinstance(body, dict) else ""
@@ -734,9 +775,17 @@ class CampusApiHandler(BaseHTTPRequestHandler):
         hit = _gen_cache.get(key)
         if hit and now - hit[0] < GEN_CACHE_SEC:
             return self._json_response({"practical": hit[1], "cached": True})
+        is_demo = caller["role"] == "demo"
+        limit = DEMO_GEN_PER_TOKEN_HOUR if is_demo else GEN_PER_HOUR
         recent = [t for t in _gen_calls.get(caller["sub"], []) if now - t < 3600]
-        if len(recent) >= GEN_PER_HOUR:
-            return self._error(429, f"Practical generation limit reached ({GEN_PER_HOUR} per hour). Try again later.", code="rate_limited")
+        if is_demo:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if _demo_day[0] != today:
+                _demo_day[0], _demo_day[1] = today, 0
+            if _demo_day[1] >= DEMO_GEN_PER_DAY:
+                return self._error(429, "The free demo has reached today's generation limit. Sign in with a real account or try tomorrow.", code="rate_limited")
+        if len(recent) >= limit:
+            return self._error(429, f"Practical generation limit reached ({limit} per hour). Try again later.", code="rate_limited")
         try:
             spec = practical_gen.generate(text)
         except practical_gen.GenError as e:
@@ -744,10 +793,39 @@ class CampusApiHandler(BaseHTTPRequestHandler):
                 logging.getLogger("campusos").warning("practical generation failed: %s (%s)", e.code, e.message)
             return self._error(e.status, e.message, code=e.code)
         _gen_calls[caller["sub"]] = recent + [now]
+        if is_demo:
+            _demo_day[1] += 1
         if len(_gen_cache) > 200:
             _gen_cache.clear()
         _gen_cache[key] = (now, spec)
         return self._json_response({"practical": spec, "cached": False})
+
+    def _handle_fresh_quiz(self, caller: Dict[str, Any]):
+        body = self._read_json()
+        if not isinstance(body, dict):
+            return self._error(400, "Invalid request.", code="validation_error")
+        avoid = body.get("avoid")
+        now = time.time()
+        is_demo = caller["role"] == "demo"
+        key = "quiz|" + caller["sub"]
+        limit = DEMO_GEN_PER_TOKEN_HOUR * 2 if is_demo else GEN_PER_HOUR * 3
+        recent = [t for t in _gen_calls.get(key, []) if now - t < 3600]
+        if len(recent) >= limit:
+            return self._error(429, "Too many quiz requests. Try again later.", code="rate_limited")
+        if is_demo:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if _demo_day[0] != today:
+                _demo_day[0], _demo_day[1] = today, 0
+            if _demo_day[1] >= DEMO_GEN_PER_DAY:
+                return self._error(429, "The free demo has reached today's generation limit.", code="rate_limited")
+        try:
+            quiz = practical_gen.generate_quiz(str(body.get("title", "")), str(body.get("theory", "")), avoid if isinstance(avoid, list) else [])
+        except practical_gen.GenError as e:
+            return self._error(e.status, e.message, code=e.code)
+        _gen_calls[key] = recent + [now]
+        if is_demo:
+            _demo_day[1] += 1
+        return self._json_response({"quiz": quiz})
 
     def _handle_get_employee_leaves(self, caller: Dict[str, Any], employee_id: str):
         # Own history only (admin may view anyone's). Students never reach employee data.

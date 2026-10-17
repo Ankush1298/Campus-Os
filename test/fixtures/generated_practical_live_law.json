@@ -1,0 +1,209 @@
+{
+  "practical": {
+    "title": "Judicial Review in Constitutional Law",
+    "subject": "Law",
+    "difficulty": "Intermediate",
+    "objective": "Apply the principles of judicial review to assess the constitutionality of a hypothetical statute.",
+    "task": "Evaluate a proposed law restricting political protests and decide whether it should be upheld or struck down.",
+    "steps": [
+      "Read the statutory language carefully",
+      "Identify the constitutional right implicated",
+      "Choose the appropriate level of scrutiny",
+      "Apply the test to the law\u2019s purpose and means",
+      "Render a decision and write a brief justification"
+    ],
+    "inputs": "Select the constitutional provision (e.g., freedom of speech) and the level of scrutiny to apply (strict, intermediate, rational).",
+    "expected": "The student selects freedom of speech, applies strict scrutiny, finds the law not narrowly tailored, and concludes it is unconstitutional.",
+    "validation": "Your decisions are scored by the app (60% to pass). If you miss it, a short quiz on the theory comes next. Scenario feedback comes from the generator: check it against your course material.",
+    "concepts": [
+      "Judicial Review",
+      "Levels of Scrutiny",
+      "Constitutional Rights",
+      "Precedent",
+      "Standing"
+    ],
+    "theory": {
+      "overview": "Judicial review is the power of courts to examine legislative and executive actions and declare them invalid if they conflict with the constitution. It safeguards constitutional supremacy and protects individual rights.",
+      "sections": [
+        {
+          "heading": "Origin and Authority",
+          "body": "The principle was articulated in Marbury v. Madison (1803) where the U.S. Supreme Court claimed the authority to invalidate unconstitutional statutes. Similar doctrines exist in many constitutional systems worldwide."
+        },
+        {
+          "heading": "Levels of Scrutiny",
+          "body": "Courts apply different standards\u2014strict scrutiny, intermediate scrutiny, and rational basis\u2014depending on the right affected and the nature of the law. The stricter the test, the harder the government must justify the law."
+        },
+        {
+          "heading": "Procedural Steps",
+          "body": "When a case raises a constitutional question, the court first determines standing, then identifies the relevant constitutional provision, selects the appropriate level of scrutiny, and finally decides whether the law survives the test."
+        },
+        {
+          "heading": "Key Cases",
+          "body": "Landmark decisions such as Brown v. Board of Education (desegregation) and Citizens United v. FEC (political speech) illustrate how judicial review shapes policy by striking down or upholding statutes."
+        },
+        {
+          "heading": "Limits of Judicial Review",
+          "body": "Courts may defer to legislative judgments in areas like economic regulation under rational basis review, and they cannot issue advisory opinions; they only resolve actual disputes."
+        }
+      ],
+      "key_terms": [
+        {
+          "term": "Judicial Review",
+          "meaning": "The power of courts to invalidate laws that conflict with the constitution."
+        },
+        {
+          "term": "Strict Scrutiny",
+          "meaning": "The highest level of review; the government must show a compelling interest and narrow tailoring."
+        },
+        {
+          "term": "Rational Basis",
+          "meaning": "The lowest level of review; the law is upheld if it is rationally related to a legitimate government interest."
+        },
+        {
+          "term": "Standing",
+          "meaning": "The legal right to bring a case, requiring a concrete injury."
+        },
+        {
+          "term": "Precedent",
+          "meaning": "A prior judicial decision that guides future cases."
+        }
+      ],
+      "worked_example": "A state passes a law banning all political rallies in public parks. A group of activists sues, claiming the law violates the First Amendment. The court identifies the right to free speech as a fundamental right, applies strict scrutiny, asks whether the state has a compelling interest and if the ban is narrowly tailored. Because the law is a blanket prohibition, it fails strict scrutiny and is struck down as unconstitutional."
+    },
+    "model": null,
+    "scenario": {
+      "setup": "You are a constitutional judge reviewing a new statute that bans all political protests in public parks between 9 am and 5 pm.",
+      "rounds": [
+        {
+          "situation": "The statute plainly prohibits any political gathering in public parks during business hours.",
+          "choices": [
+            {
+              "text": "Apply strict scrutiny because the law restricts a fundamental right",
+              "score": 2,
+              "feedback": "Correct: political speech is protected, so strict scrutiny is required."
+            },
+            {
+              "text": "Apply rational basis because the law is about public order",
+              "score": 0,
+              "feedback": "Incorrect: rational basis is too lenient for fundamental speech rights."
+            },
+            {
+              "text": "Defer to the legislature without review",
+              "score": 1,
+              "feedback": "Partially right: courts may consider legislative intent but must still apply the proper test."
+            }
+          ]
+        },
+        {
+          "situation": "The government argues the ban is a content\u2011neutral time, place, and manner regulation.",
+          "choices": [
+            {
+              "text": "Accept the content\u2011neutral claim and apply intermediate scrutiny",
+              "score": 2,
+              "feedback": "Correct: content\u2011neutral regulations are reviewed under intermediate scrutiny."
+            },
+            {
+              "text": "Treat the ban as content\u2011based and apply strict scrutiny",
+              "score": 0,
+              "feedback": "Incorrect: the statute does not target speech based on its message."
+            },
+            {
+              "text": "Strike down the law without any analysis",
+              "score": 1,
+              "feedback": "Partially right: the law may be invalid, but the court must first apply the proper test."
+            }
+          ]
+        },
+        {
+          "situation": "After applying the appropriate test, you must decide the law\u2019s fate.",
+          "choices": [
+            {
+              "text": "Strike down the law as unconstitutional",
+              "score": 2,
+              "feedback": "Correct: the law fails the applied scrutiny and cannot stand."
+            },
+            {
+              "text": "Uphold the law because it serves public safety",
+              "score": 1,
+              "feedback": "Partially right: public safety is a legitimate interest, but the law is not narrowly tailored."
+            },
+            {
+              "text": "Remand the case for further fact\u2011finding",
+              "score": 0,
+              "feedback": "Incorrect: the constitutional analysis is complete; remand is unnecessary."
+            }
+          ]
+        }
+      ]
+    },
+    "quiz": [
+      {
+        "question": "What is the primary purpose of judicial review?",
+        "options": [
+          "To create new laws",
+          "To interpret statutes in light of precedent",
+          "To ensure government actions comply with the constitution",
+          "To resolve disputes between private parties"
+        ],
+        "correct_index": 2,
+        "explanation": "Judicial review checks that legislative and executive actions do not violate the constitution."
+      },
+      {
+        "question": "Which level of scrutiny is applied to laws that restrict fundamental rights?",
+        "options": [
+          "Rational basis",
+          "Intermediate scrutiny",
+          "Strict scrutiny",
+          "No scrutiny needed"
+        ],
+        "correct_index": 2,
+        "explanation": "Fundamental rights trigger strict scrutiny, the most demanding standard."
+      },
+      {
+        "question": "Which U.S. case famously established the power of judicial review?",
+        "options": [
+          "Brown v. Board of Education",
+          "Marbury v. Madison",
+          "Roe v. Wade",
+          "United States v. Nixon"
+        ],
+        "correct_index": 1,
+        "explanation": "Marbury v. Madison (1803) articulated the court\u2019s authority to invalidate unconstitutional laws."
+      },
+      {
+        "question": "What distinguishes strict scrutiny from rational basis review?",
+        "options": [
+          "Strict scrutiny requires a compelling interest and narrow tailoring; rational basis only needs a legitimate interest and a rational link",
+          "Strict scrutiny is used for economic regulations; rational basis for civil liberties",
+          "Both require the same level of justification",
+          "Rational basis is stricter than strict scrutiny"
+        ],
+        "correct_index": 0,
+        "explanation": "Strict scrutiny is the highest standard, demanding a compelling interest and narrow fit, whereas rational basis is much more deferential."
+      }
+    ],
+    "hints": [
+      "Recall which constitutional amendment protects political speech and what test that triggers.",
+      "Consider whether the law targets the content of speech or merely its location and timing.",
+      "Think about the three levels of scrutiny and which one applies to fundamental rights."
+    ],
+    "recovery": {
+      "question": "A common misconception is that judicial review allows courts to rewrite statutes. Which statement best corrects this?",
+      "options": [
+        "Judicial review lets courts amend statutes to fit the constitution",
+        "Judicial review permits courts to strike down statutes that conflict with the constitution",
+        "Judicial review requires courts to rewrite legislative language",
+        "Judicial review gives courts legislative power"
+      ],
+      "correct_index": 1,
+      "explanation": "Judicial review only invalidates unconstitutional statutes; it does not rewrite them."
+    },
+    "reflection": [
+      "In a few sentences, explain why strict scrutiny is applied to laws affecting political speech.",
+      "Describe the procedural steps a court follows when exercising judicial review."
+    ],
+    "generated_by": "ai",
+    "generator_model": "openai/gpt-oss-120b"
+  },
+  "cached": false
+}

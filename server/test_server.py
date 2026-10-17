@@ -481,6 +481,74 @@ class CampusBackendTests(unittest.TestCase):
             srv.GEN_PER_HOUR = old_limit
             srv._gen_cache.clear(); srv._gen_calls.clear()
 
+    # 12. Restricted demo access (lets the app's demo buttons use AI generation without a password)
+    def _demo_token(self):
+        status, body = self._request("POST", "/api/auth/demo", {})
+        self.assertEqual(status, 200)
+        return body["token"]
+
+    def test_33_demo_token_can_only_generate_practicals(self):
+        import practical_gen
+        srv._demo_issued.clear(); srv._gen_cache.clear(); srv._gen_calls.clear()
+        real = practical_gen.generate
+        practical_gen.generate = lambda text, client=None: {"title": "T", "generated_by": "ai"}
+        try:
+            tok = self._demo_token()
+            self.assertEqual(self._request("POST", "/api/practiverse/generate", {"text": "Photosynthesis"}, token=tok)[0], 200)
+            for method, path, body in [
+                ("GET", "/api/erp/leaves", None), ("GET", "/api/erp/employees", None), ("GET", "/api/erp/leaves/student/22CS1042", None),
+                ("GET", "/api/erp/leaves/warden/FAC-CS-08", None), ("GET", "/api/erp/leaves/approver/ADMIN01", None),
+                ("POST", "/api/erp/leaves", {"leaveType": "x", "startDate": "2027-01-01T00:00:00Z", "endDate": "2027-01-02T00:00:00Z", "reason": "a long enough reason"}),
+                ("POST", "/api/erp/leaves/LEAVE-2026-001/decision", {"status": "approved"}),
+                ("POST", "/api/erp/admin/employee-approvers", {"employeeId": "FAC-CS-12", "approverId": "ADMIN01"}),
+            ]:
+                self.assertEqual(self._request(method, path, body, token=tok)[0], 403, (method, path))
+        finally:
+            practical_gen.generate = real
+            srv._gen_cache.clear(); srv._gen_calls.clear()
+
+    def test_34_demo_access_is_rate_limited_per_ip_and_per_day_and_can_be_disabled(self):
+        import practical_gen
+        srv._demo_issued.clear(); srv._gen_cache.clear(); srv._gen_calls.clear()
+        old = (srv.DEMO_TOKENS_PER_IP_HOUR, srv.DEMO_GEN_PER_DAY, srv.DEMO_AI_ENABLED)
+        real = practical_gen.generate
+        practical_gen.generate = lambda text, client=None: {"title": "T"}
+        try:
+            srv.DEMO_TOKENS_PER_IP_HOUR = 2
+            self._demo_token(); self._demo_token()
+            self.assertEqual(self._request("POST", "/api/auth/demo", {})[0], 429)
+            srv._demo_issued.clear()
+            srv.DEMO_GEN_PER_DAY = 2
+            srv._demo_day[0], srv._demo_day[1] = "", 0
+            tok = self._demo_token()
+            codes = [self._request("POST", "/api/practiverse/generate", {"text": f"topic number {i}"}, token=tok)[0] for i in range(3)]
+            self.assertEqual(codes, [200, 200, 429])                       # global daily cap protects the free API quota
+            srv.DEMO_AI_ENABLED = False
+            self.assertEqual(self._request("POST", "/api/auth/demo", {})[0], 404)
+        finally:
+            practical_gen.generate = real
+            srv.DEMO_TOKENS_PER_IP_HOUR, srv.DEMO_GEN_PER_DAY, srv.DEMO_AI_ENABLED = old
+            srv._demo_issued.clear(); srv._gen_cache.clear(); srv._gen_calls.clear(); srv._demo_day[:] = ["", 0]
+
+    # 13. Fresh review quizzes
+    def test_35_fresh_quiz_endpoint_auth_limits_and_demo_scope(self):
+        import practical_gen
+        srv._gen_calls.clear(); srv._demo_issued.clear(); srv._demo_day[:] = ["", 0]
+        seen = []
+        real = practical_gen.generate_quiz
+        practical_gen.generate_quiz = lambda title, theory, avoid, client=None: (seen.append(avoid) or [{"question": "q", "options": ["a", "b", "c", "d"], "correct_index": 0, "explanation": "e"}])
+        try:
+            payload = {"title": "T", "theory": "x" * 60, "avoid": ["old question"]}
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload)[0], 401)
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload, token=self._login("22CS1042"))[0], 200)
+            self.assertEqual(seen[0], ["old question"])
+            tok = self._demo_token()                       # the restricted demo token may fetch quizzes, nothing else
+            self.assertEqual(self._request("POST", "/api/practiverse/quiz", payload, token=tok)[0], 200)
+            self.assertEqual(self._request("GET", "/api/erp/leaves", token=tok)[0], 403)
+        finally:
+            practical_gen.generate_quiz = real
+            srv._gen_calls.clear(); srv._demo_issued.clear(); srv._demo_day[:] = ["", 0]
+
 
 if __name__ == "__main__":
     unittest.main()

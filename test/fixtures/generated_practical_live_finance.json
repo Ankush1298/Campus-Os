@@ -1,0 +1,186 @@
+{
+  "practical": {
+    "title": "Compound Interest and the Time Value of Money",
+    "subject": "Finance",
+    "difficulty": "Beginner",
+    "objective": "Apply the compound interest formula to calculate the future value of an investment.",
+    "task": "Compute the future value for given principal, rate, years, and compounding frequency.",
+    "steps": [
+      "Enter the principal amount (P)",
+      "Enter the annual interest rate (r)",
+      "Enter the number of years (t)",
+      "Enter the compounding frequency per year (n)",
+      "Submit to obtain the future value"
+    ],
+    "inputs": "Principal (P), annual interest rate (r), years (t), compounding frequency (n)",
+    "expected": "Future value displayed matches the manual calculation using FV = P*(1+r/100/n)^(n*t)",
+    "validation": "Your numeric answer is checked against the value computed from the formula (within 5%). If you miss it, a short quiz on the theory comes next.",
+    "concepts": [
+      "Compound interest",
+      "Future value",
+      "Compounding frequency",
+      "Interest rate",
+      "Time value of money"
+    ],
+    "theory": {
+      "overview": "Compound interest reflects the principle that interest earns interest over time, making money grow faster than simple interest. Understanding this concept is essential for evaluating investments and loans.",
+      "sections": [
+        {
+          "heading": "Time Value of Money",
+          "body": "Money available today is worth more than the same amount in the future because it can earn interest. This core idea underlies all interest calculations."
+        },
+        {
+          "heading": "Simple vs. Compound Interest",
+          "body": "Simple interest is calculated only on the original principal, while compound interest adds interest to the accumulated amount each period, leading to exponential growth."
+        },
+        {
+          "heading": "Compound Interest Formula",
+          "body": "The future value (FV) of an investment is FV = P \u00d7 (1 + r/100 \u00f7 n)^(n \u00d7 t), where P is principal, r is annual rate (%), n is compounding frequency per year, and t is years."
+        },
+        {
+          "heading": "Effect of Compounding Frequency",
+          "body": "More frequent compounding (higher n) increases the future value because interest is added to the balance more often, though the effect diminishes as n becomes very large."
+        }
+      ],
+      "key_terms": [
+        {
+          "term": "Principal",
+          "meaning": "The initial amount of money invested or borrowed."
+        },
+        {
+          "term": "Interest Rate",
+          "meaning": "The percentage charged or earned on the principal each year."
+        },
+        {
+          "term": "Compounding Frequency",
+          "meaning": "Number of times per year that interest is calculated and added to the balance."
+        },
+        {
+          "term": "Future Value",
+          "meaning": "The amount of money an investment will grow to after a certain period."
+        },
+        {
+          "term": "Present Value",
+          "meaning": "The current worth of a future amount of money, discounted at a given interest rate."
+        }
+      ],
+      "worked_example": "Example: Invest $2,000 at an annual rate of 6% compounded quarterly for 3 years. Step 1: Convert rate to decimal and divide by compounding periods: r/100/n = 0.06/4 = 0.015. Step 2: Compute total number of periods: n \u00d7 t = 4 \u00d7 3 = 12. Step 3: Apply formula: FV = 2000 \u00d7 (1 + 0.015)^12. Step 4: Calculate (1.015)^12 \u2248 1.195618. Step 5: Multiply by principal: FV \u2248 2000 \u00d7 1.195618 = $2,391.24."
+    },
+    "model": {
+      "formula_label": "Future Value of Compound Interest",
+      "expression": "P*(1+r/100/n)^(n*t)",
+      "result_name": "Future Value",
+      "result_unit": "dollars",
+      "variables": [
+        {
+          "name": "P",
+          "label": "Principal",
+          "unit": "dollars",
+          "min": 100.0,
+          "max": 10000.0,
+          "step": 100.0,
+          "default": 1000.0
+        },
+        {
+          "name": "r",
+          "label": "Annual interest rate",
+          "unit": "%",
+          "min": 1.0,
+          "max": 15.0,
+          "step": 0.5,
+          "default": 5.0
+        },
+        {
+          "name": "n",
+          "label": "Compounding frequency per year",
+          "unit": "times/year",
+          "min": 1.0,
+          "max": 12.0,
+          "step": 1.0,
+          "default": 12.0
+        },
+        {
+          "name": "t",
+          "label": "Years",
+          "unit": "years",
+          "min": 1.0,
+          "max": 30.0,
+          "step": 1.0,
+          "default": 5.0
+        }
+      ],
+      "question": "Calculate the future value of an investment of ${P} after {t} years at an annual interest rate of {r}% compounded {n} times per year.",
+      "explanation": "Future value is computed using FV = P * (1 + r/100/n)^(n*t). A common mistake is to forget to divide the rate by 100 or to omit the compounding frequency."
+    },
+    "scenario": null,
+    "quiz": [
+      {
+        "question": "Which statement best describes compound interest?",
+        "options": [
+          "Interest is earned only on the original principal",
+          "Interest is earned on both the principal and previously earned interest",
+          "The interest rate decreases over time",
+          "Interest is paid only at the end of the term"
+        ],
+        "correct_index": 1,
+        "explanation": "Compound interest adds interest to the accumulated balance, so interest is earned on interest as well."
+      },
+      {
+        "question": "If you double the compounding frequency while keeping the nominal annual rate the same, the future value will:",
+        "options": [
+          "Half as much",
+          "Stay the same",
+          "Increase slightly",
+          "Decrease"
+        ],
+        "correct_index": 2,
+        "explanation": "More frequent compounding adds interest more often, raising the future value, though the increase diminishes with very high frequencies."
+      },
+      {
+        "question": "What is the future value of $1,000 invested for 2 years at 5% annual interest compounded annually?",
+        "options": [
+          "$1,102.50",
+          "$1,105.00",
+          "$1,110.25",
+          "$1,115.00"
+        ],
+        "correct_index": 0,
+        "explanation": "FV = 1000*(1+0.05)^2 = 1000*1.1025 = $1,102.50."
+      },
+      {
+        "question": "Which variable does NOT affect the future value of a compound\u2011interest investment?",
+        "options": [
+          "Principal",
+          "Interest rate",
+          "Compounding frequency",
+          "Color of the bank\u2019s logo"
+        ],
+        "correct_index": 3,
+        "explanation": "Only principal, rate, frequency, and time influence future value; aesthetic factors do not."
+      }
+    ],
+    "hints": [
+      "Remember the formula includes (1 + r/100/n).",
+      "The exponent is the total number of compounding periods, n \u00d7 t, not just the number of years.",
+      "Convert the percentage rate to a decimal before applying the formula."
+    ],
+    "recovery": {
+      "question": "When using the compound interest formula, how should the annual interest rate be entered?",
+      "options": [
+        "As a decimal (e.g., 0.05 for 5%)",
+        "As a percentage (e.g., 5 for 5%)",
+        "As a whole number multiplied by 100",
+        "It doesn\u2019t matter"
+      ],
+      "correct_index": 0,
+      "explanation": "The rate must be expressed as a decimal (or divided by 100 in the formula) to correctly compute interest."
+    },
+    "reflection": [
+      "Explain in your own words why compound interest leads to larger returns than simple interest over the same period.",
+      "Describe how increasing the compounding frequency affects the future value of an investment."
+    ],
+    "generated_by": "ai",
+    "generator_model": "openai/gpt-oss-120b"
+  },
+  "cached": false
+}
